@@ -179,7 +179,29 @@ def test_tickers_file_and_comma_args_edge_cases():
                             source=None, limit=None))()
     from stock_analyzer.review.cli import resolve_tickers
     assert resolve_tickers(ns) == ["AAPL", "MSFT", "BRK-B"]
-    print("OK ticker file / comma-separated args edge cases")
+    from stock_analyzer.review import cli as _cli
+    import stock_analyzer.review.gui as _gui
+    def _boom():
+        raise ConnectionError("offline")
+    ns2 = type("A", (), dict(tickers=[], file=None, sector=None, source="sp500",
+                             limit=None))()
+    old = _cli.SOURCES
+    _cli.SOURCES = {"sp500": _boom}
+    try:
+        resolve_tickers(ns2)
+        raise AssertionError("expected SystemExit")
+    except SystemExit as e:
+        assert "offline" in str(e) and "sp500" in str(e)
+    finally:
+        _cli.SOURCES = old
+    for bad in ({"mode": "custom", "tickers": "-X AAPL"},
+                {"mode": "curated", "limit": "\u00b2"}):
+        try:
+            _gui.build_argv(bad)
+            raise AssertionError("expected ValueError")
+        except ValueError:
+            pass
+    print("OK ticker file / comma-separated args / scrape / gui argv edge cases")
 
 
 def _run_all():

@@ -6,7 +6,10 @@
   first ticker and a cp1252 file crashed with a traceback. Positional
   `AAPL,MSFT` is split into two tickers. A report that cannot be written
   (bad path, read-only) now prints a clear message and exits 1 instead of a
-  traceback.
+  traceback. A failed constituent-list scrape (`--source`/`--sector`, e.g. offline
+  or Wikipedia throttling) prints a clean message instead of a traceback, and the
+  GUI rejects tickers starting with `-` and non-ASCII digits in Limit/Workers
+  instead of crashing the run.
 
 # Changes — 2.3: review.md fixes, correctness + design (2026-07-16)
 

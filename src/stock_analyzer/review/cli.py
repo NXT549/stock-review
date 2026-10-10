@@ -34,6 +34,19 @@ from .universe import (DEFAULT_TICKERS, REGION_RECORDS, SECTORS, SOURCES,
                        verify_loose_industry)
 
 
+def _scrape(fn, what: str) -> list[str]:
+    """Run a constituent-list scrape; turn a network/parse failure (offline,
+    Wikipedia 429, changed table layout) into a clean message, not a traceback."""
+    try:
+        return fn()
+    except (SystemExit, KeyboardInterrupt):
+        raise
+    except Exception as e:  # noqa: BLE001 - requests/pandas/lxml raise many types
+        raise SystemExit(f"Could not fetch the '{what}' constituent list "
+                         f"({type(e).__name__}: {e}). Check your connection and retry, "
+                         "or pass tickers directly / use --file.") from e
+
+
 def resolve_tickers(args) -> list[str]:
     # Several ticker sources can be supplied at once; say which one wins instead
     # of silently ignoring the rest. --sector + --source is a genuine combination
@@ -60,12 +73,12 @@ def resolve_tickers(args) -> list[str]:
                 f"'{region}'. Use one of: {', '.join(sorted(REGION_RECORDS))}.")
         print(f"Fetching '{region}' constituents and filtering to sector "
               f"'{sector_key}'...", file=sys.stderr)
-        tickers = tickers_for_sector(sector_key, region)
+        tickers = _scrape(lambda: tickers_for_sector(sector_key, region), region)
         if not tickers:
             raise SystemExit(f"No '{sector_key}' names found in region '{region}'.")
     elif args.source:
         print(f"Fetching '{args.source}' constituent list...", file=sys.stderr)
-        tickers = SOURCES[args.source]()
+        tickers = _scrape(SOURCES[args.source], args.source)
     else:
         tickers = list(DEFAULT_TICKERS)
     # de-dupe, preserve order

@@ -1,0 +1,99 @@
+# =============================================================================
+# Stock Analyzer configuration
+#
+# Everything that changes behaviour lives here. The scoring section in
+# particular is meant to be edited and re-backtested (see scripts/run_backtest.py).
+# =============================================================================
+
+universe:
+  # source: csv | sp500 | nasdaq | asx
+  #   csv    -> read tickers from csv_path (a column named 'ticker')
+  #   sp500  -> S&P 500 constituents (scraped from Wikipedia; see universe.py)
+  #   nasdaq -> NASDAQ-listed (downloaded from nasdaqtrader.com)
+  #   asx    -> ASX-listed (downloaded from the ASX directory; PATCHIER coverage
+  #             in yfinance - tickers are suffixed '.AX', see Data-source honesty)
+  source: csv
+  csv_path: config/universe/au_heavy.csv   # ASX 200 + curated US (big+small) + Nikkei JP (329 names)
+  limit: null          # optional integer cap, handy for testing larger sources
+
+markets:
+  # Which markets your universe spans. Used ONLY to document/derive the
+  # "after all closes" run time for scheduling. A single 4pm run cannot serve
+  # both US and ASX (they close ~14-16h apart). See scheduling/ for examples.
+  enabled: [US, ASX]                  # subset of: US, ASX (universe also includes JP names)
+  close_times:                        # informational; referenced by docs/scheduler
+    US:  "16:00 America/New_York"
+    ASX: "16:00 Australia/Sydney"
+
+data:
+  cache_dir: data/cache
+  cache_ttl_hours: 20                 # reuse a same-day pull instead of re-hitting yfinance
+  batch_size: 50                      # tickers per batched price download
+  history_period: "1y"               # window for indicators + trailing returns
+  request_pause_seconds: 1.0          # polite throttle between per-ticker .info calls
+  max_retries: 4                      # retry budget per network op
+  backoff_base_seconds: 2.0           # exponential backoff: base * 2**attempt (+jitter)
+  yfinance_min_version: "0.2.40"      # logged warning if the installed version is older
+
+scoring:
+  # Outlier handling: winsorize raw values to these quantiles before ranking.
+  winsor_lower: 0.01
+  winsor_upper: 0.99
+  # Sector-relative metrics need at least this many non-null members in a sector
+  # to rank within it; otherwise that stock falls back to universe-wide ranking.
+  # Tickers with sector "Unknown" (missing data) ALWAYS rank universe-wide —
+  # they are never treated as a peer group, no matter how many there are.
+  min_group_size: 5
+  # A metric with fewer than this many non-null values across the WHOLE universe
+  # is dropped for the day (too few points to rank meaningfully).
+  min_rankable: 3
+
+  # Category weights -> final 0-100 score. Must be the five keys below.
+  # If a stock is missing an entire category, that category's weight is
+  # redistributed across the categories it DOES have (see scoring.py).
+  category_weights:
+    fundamentals: 0.35
+    technicals:   0.30
+    momentum:     0.15
+    analyst:      0.10
+    sentiment:    0.10
+
+  # Optional per-metric weight overrides. Default is 1.0 for every metric within
+  # its category (equal weight). Example: bump ROE, de-emphasise PEG:
+  #   metric_weights: { roe: 1.5, peg: 0.5 }
+  metric_weights: {}
+
+reporting:
+  # The script writes ONE condensed Markdown file (ai_review_<date>.md) you feed
+  # to an AI for review. No AI runs inside this project. The file is two compact
+  # tables -- a scores table and a per-metric percentile matrix -- covering EVERY
+  # scored stock at one row each, so a large universe stays small enough to feed.
+  output_dir: reports
+  # Optionally append a verbose raw-value breakdown for the top N names (handy for
+  # data sanity-checking). 0 = none (fully condensed).
+  deep_dive_n: 0
+  # Used by the backtest harness only (top-N vs universe forward-return check).
+  top_n: 5
+
+storage:
+  # SQLite default. For PostgreSQL set this (or the STOCK_ANALYZER_DB_URL env var):
+  #   postgresql+psycopg2://user:password@localhost:5432/stock_analyzer
+  db_url: "sqlite:///database/stock_analyzer.db"
+
+optional_providers:
+  # Clearly-named optional integrations for fields free yfinance does NOT
+  # reliably provide. DISABLED by default. We never invent these numbers; when
+  # disabled the field is recorded as unavailable and excluded from scoring.
+  news_sentiment:
+    enabled: false
+    provider: "none"                  # e.g. alphavantage | finnhub (implement in sentiment_providers.py)
+  social_sentiment:
+    enabled: false
+    provider: "none"
+  institutional_flow:
+    enabled: false
+    provider: "none"
+
+logging:
+  level: INFO                         # DEBUG | INFO | WARNING | ERROR
+  dir: logs

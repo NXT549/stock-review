@@ -1,0 +1,45 @@
+# ---------------------------------------------------------------------------
+# Stock Analyzer - pinned dependencies
+#
+# SUPPORTED RUNTIME: Python 3.11.x - 3.12.x  (verified on 3.12 with the pins below).
+# yfinance is version-sensitive and UNOFFICIAL; if pulls start failing, the
+# first thing to try is bumping ONLY the yfinance pin to the latest release.
+#
+# NOTE: the deterministic scoring math in this repo was additionally smoke-
+# tested under newer libs (numpy 2.x / pandas 3.x on 3.13); the pins below are
+# the supported, reproducible target. Use a venv (see README).
+# ---------------------------------------------------------------------------
+
+# --- Data source (treat as unofficial / breakable) ---
+# Bumped from 0.2.52 -> 1.4.x: the old 0.2.x line no longer pulls reliably from
+# Yahoo. 1.4.1 keeps the same call surface this repo uses (yf.download / Ticker /
+# upgrades_downgrades). Pin to the latest known-good if pulls start failing.
+yfinance==1.4.1
+
+# --- Numerics / data frames ---
+pandas==2.2.2
+numpy==1.26.4
+scipy==1.13.1
+
+# --- Technical indicators ---
+# We use `ta` (bukosabino/ta). We deliberately do NOT also install pandas-ta
+# to avoid two overlapping indicator libraries and version conflicts.
+ta==0.11.0
+
+# --- HTTP / scraping (used by optional providers + universe builders) ---
+requests==2.32.3
+beautifulsoup4==4.12.3
+
+# --- Storage ---
+SQLAlchemy==2.0.31
+# PostgreSQL (optional, enable via config storage.db_url). Uncomment to use:
+# psycopg2-binary==2.9.9
+
+# --- Reports ---
+# Output is a single pure-Python Markdown file (ai_review_<date>.md). No charting,
+# PDF, or AI/LLM dependencies: you feed that one file to an AI of your choice.
+
+# --- Scheduling / config / env ---
+schedule==1.2.2
+PyYAML==6.0.1
+python-dotenv==1.0.1

@@ -1,0 +1,32 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv*/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# PyInstaller build output (see packaging/)
+build/
+dist/
+packaging/installer_output/
+
+# Runtime artifacts (keep the directories via .gitkeep)
+data/cache/
+data/review_cache/
+gui_settings.json
+logs/*.log
+database/*.db
+database/*.sqlite
+reports/*
+!reports/.gitkeep
+
+# Release archives
+Stock Review 2.*.zip
+
+# OS
+.DS_Store
+Thumbs.db

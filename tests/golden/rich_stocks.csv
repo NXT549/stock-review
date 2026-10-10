@@ -1,0 +1,4 @@
+Ticker,Name,Sector,Size,Curr,Price,Mkt cap,P/E,Fwd P/E,PEG,P/B,P/S,ROE,Margin,Rev gr,D/E,Div,1m,3m,6m,1y,vs 50d,vs 200d,From 52w hi,From 52w lo,Beta,Analyst,# An.,Target,Target ↑
+AAPL,Apple Inc.,Technology,Mega,USD,195.00,$3.00T,32.1,28.4,2.10,48.0,8.2,147.0%,25.3%,+2.1%,140,0.4%,+3.1%,+8.2%,+12.0%,+18.0%,+3.0%,+9.0%,-4.0%,+35.0%,1.29,buy,40,210.00,+7.7%
+7203.T,Toyota Motor Corporation,Consumer Cyclical,Mega,JPY,"3,306.00",$300.0B,8.4,9.1,n/a,1.1,0.9,14.0%,10.0%,+6.0%,105,2.1%,-2.0%,+5.0%,+11.0%,+22.0%,-1.0%,+7.0%,-8.0%,+40.0%,0.50,strong buy,15,"3,800.00",+14.9%
+XYZ,"Sparse Data Co, Inc.",,Small,USD,12.50,$500.0M,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,n/a,,n/a,n/a,n/a

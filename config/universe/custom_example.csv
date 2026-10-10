@@ -1,0 +1,10 @@
+# Custom watchlist example.
+# Only the 'ticker' column is required. 'name' is optional (display only).
+# Use Yahoo Finance symbology: US plain (AAPL); ASX suffix '.AX' (BHP.AX);
+# LSE '.L', Toronto '.TO', etc.
+ticker,name
+BHP.AX,BHP Group Ltd (ASX)
+CBA.AX,Commonwealth Bank (ASX)
+CSL.AX,CSL Ltd (ASX)
+AAPL,Apple Inc.
+ASML,ASML Holding NV

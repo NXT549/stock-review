@@ -1,0 +1,96 @@
+STOCK REVIEW 2.3 - INSTALL GUIDE
+=================================
+(the "just tell me exactly what to click" edition)
+
+You need: a Windows computer and an internet connection. That's it.
+You do NOT need Python, you do NOT need to be technical, and nothing
+here costs money.
+
+
+STEP 1 - GET THE FILES OUT OF THE ZIP
+--------------------------------------
+If you're reading this from inside the zip file, stop and unpack it
+first (programs won't install properly from inside a zip):
+
+  1. Find "Stock Review 2.3.zip" (probably in your Downloads folder).
+  2. RIGHT-click it.
+  3. Click "Extract All...".
+  4. Click "Extract".
+
+A normal folder appears with three files in it: this guide, a README,
+and "Stock Review Setup.exe".
+
+
+STEP 2 - RUN THE INSTALLER
+---------------------------
+  1. Double-click  "Stock Review Setup.exe".
+
+  2. Windows will probably show a BLUE BOX that says
+     "Windows protected your PC".
+
+     DON'T PANIC. This is normal. It only means the app is new and
+     Windows hasn't seen it before. It is NOT a virus warning.
+
+     -> Click the small text that says  "More info"
+     -> Then click the button          "Run anyway"
+
+     You only ever have to do this once.
+
+  3. The installer opens. Just keep clicking the obvious button:
+     "Next"  ->  "Install"  ->  "Finish".
+     No admin password needed. Leave "Launch Stock Review now" ticked
+     if you want it to open straight away.
+
+That's it. You now have "Stock Review" on your desktop and in the
+Start menu.
+
+
+STEP 3 - YOUR FIRST RUN (30 SECONDS)
+-------------------------------------
+  1. Open "Stock Review" (the desktop icon).
+  2. A little welcome and a Tip of the Day may pop up - read or close.
+  3. Look at the bottom half of the window. Pick something to review,
+     or just leave it on whatever is selected. (Even easier: open the
+     "Quick picks" menu at the top and click "S&P 500".)
+  4. Click the big green  "> Run review"  button.
+  5. Watch the ASCII art while it works. Big lists take minutes -
+     the progress bar and timer tell you how it's going.
+  6. When it's done, click  "Open report". Done. That file is the
+     whole point of the app.
+
+Hover your mouse over any button or box in the app and a little
+yellow tooltip will tell you what it does.
+
+
+WHERE YOUR REPORTS GO
+----------------------
+    Documents\Stock Review\reports
+
+The "Open report" and "Open folder" buttons take you straight there,
+so you never have to remember that path. Want reports somewhere else,
+like your Desktop? Use the "Where it lands" picker in the app.
+
+
+IF SOMETHING GOES WRONG
+------------------------
+* "Windows protected your PC"  -> More info -> Run anyway (see Step 2).
+* Some tickers say FAIL        -> Yahoo rate-limits big runs. Wait a
+                                  few minutes and click Run again with
+                                  the SAME settings - it resumes where
+                                  it left off and fills the gaps.
+* You clicked Cancel           -> That's fine. Everything fetched so
+                                  far is still written as a partial
+                                  report; run again later to finish.
+* Nothing works at all         -> Check your internet. The app needs
+                                  it to fetch live prices.
+
+
+TO UNINSTALL
+-------------
+Windows Settings -> Apps -> "Stock Review" -> Uninstall.
+It removes the program, then asks if you also want to delete your
+saved reports and settings. Yes = clean sweep, No = keep the reports.
+
+
+Stock Review is a silly lil vibe-coded project, made for fun by NXT.
+Not financial advice. Enjoy!

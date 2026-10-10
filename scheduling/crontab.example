@@ -1,0 +1,38 @@
+# ===========================================================================
+# Stock Analyzer - cron examples (Linux/macOS)
+#
+# IMPORTANT TIMING CAVEAT (multi-market):
+#   The universe can span markets that close ~15h apart (ASX ~16:00 Australia/
+#   Sydney; US ~16:00 America/New_York). ONE 4pm run cannot serve both. Choose:
+#     (A) per-market runs with market-specific universes, OR
+#     (B) a single daily run timed AFTER the last close among enabled markets.
+#   yfinance daily bars settle a little AFTER the close, so add ~30-60 min.
+#
+# Set the cron timezone explicitly so DST shifts are visible. Many cron
+# implementations honour CRON_TZ=... on a per-line basis; otherwise set TZ for
+# the whole crontab or convert the times to your server's local zone.
+#
+# Edit PROJECT and PY to your paths. Use the venv's python.
+# ===========================================================================
+
+PROJECT=/opt/stock_analyzer
+PY=/opt/stock_analyzer/.venv/bin/python
+
+# --- Option A: per-market (recommended if you mix US + ASX) ------------------
+# Run the US universe ~30 min after the US close (21:00 UTC EDT / 22:00 UTC EST).
+CRON_TZ=America/New_York
+30 16 * * 1-5  cd $PROJECT && $PY scripts/run_daily.py --config config/config.us.yaml  >> logs/cron_us.log 2>&1
+
+# Run the ASX universe ~30 min after the ASX close.
+CRON_TZ=Australia/Sydney
+30 16 * * 1-5  cd $PROJECT && $PY scripts/run_daily.py --config config/config.asx.yaml >> logs/cron_asx.log 2>&1
+
+# --- Option B: single combined run after BOTH have closed --------------------
+# For a given weekday, ASX closes ~06:00 UTC and US closes ~21:00 UTC, so a run
+# at ~22:30 UTC captures both that day's closes. (Adjust for DST.)
+CRON_TZ=UTC
+30 22 * * 1-5  cd $PROJECT && $PY scripts/run_daily.py >> logs/cron_daily.log 2>&1
+
+# --- Weekly backtest refresh (Saturday 02:00 UTC) ---------------------------
+CRON_TZ=UTC
+0 2 * * 6      cd $PROJECT && $PY scripts/run_backtest.py >> logs/cron_backtest.log 2>&1

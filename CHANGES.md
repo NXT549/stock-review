@@ -5,6 +5,9 @@
   it now retries with backoff and, if still empty, is not cached.
 - **Negative debt/equity is treated as missing** (negative book equity), so
   such companies no longer rank as the *least* leveraged. Scores change.
+- **Tickers named like missing values are no longer dropped.** Universe CSV,
+  NASDAQ and ASX lists were read with pandas defaults, so `NA`/`NAN` (e.g. ASX
+  Nanosonics) vanished and numeric codes like `0700` lost their zeros.
 
 # Changes — 2.3: review.md fixes, correctness + design (2026-07-16)
 

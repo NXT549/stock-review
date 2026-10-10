@@ -337,7 +337,10 @@ def fetch_asx_all_records() -> list[dict]:
                          "pip install pandas requests") from e
     resp = requests.get(ASX_ALL_CSV, headers=WIKI_UA, timeout=30)
     resp.raise_for_status()
-    df = pd.read_csv(io.StringIO(resp.text), skiprows=1)  # 1 preamble line before header
+    # keep_default_na=False: pandas would read the ASX code "NAN" (Nanosonics) as a
+    # missing value and silently drop it.
+    df = pd.read_csv(io.StringIO(resp.text), skiprows=1,  # 1 preamble line before header
+                     dtype=str, keep_default_na=False)
     code_col = next((c for c in df.columns if "code" in c.lower()), None)
     ig_col = next((c for c in df.columns if "industry" in c.lower()), None)
     if code_col is None:
@@ -345,10 +348,10 @@ def fetch_asx_all_records() -> list[dict]:
     recs: list[dict] = []
     for _, row in df.iterrows():
         raw = str(row[code_col]).strip().upper()
-        if not raw or raw == "NAN":
+        if not raw:
             continue
         igroup = str(row[ig_col]).strip() if ig_col else ""
-        if igroup.lower() in ("nan", "not applic", "class pend"):
+        if igroup.lower() in ("", "nan", "not applic", "class pend"):
             igroup = ""  # ETFs / trusts / pending — no usable sector
         recs.append({"symbol": f"{raw}.AX", "sector": "", "subind": "",
                      "has_subind": False, "igroup": igroup, "mcap_local": None})

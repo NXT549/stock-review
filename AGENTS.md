@@ -76,6 +76,7 @@ database/schema.sql         generated SQL mirror of storage/models.py
 tests/                      plain-script tests (+ golden/ CSVs for the review grid)
 example_report/             committed synthetic example of the pipeline report
 docs/                       GitHub Pages site (static; deployed by .github/workflows/pages.yml)
+.github/workflows/          pages.yml (site), release.yml (Windows build + release on v* tags)
 ```
 
 Runtime-only (gitignored): `data/cache/`, `data/review_cache/<date>/`, `logs/`,
@@ -123,7 +124,7 @@ There is no linter/formatter config in the repo; match surrounding style
 | GUI look | `review/gui_theme.py` tokens/factories — see DESIGN.md "GUI design system" |
 | New ASCII scene | `review/ascii_art.py` → append to `ANIMATIONS` (same dict shape); GUI picks it up automatically |
 | DB schema | `storage/models.py` → regenerate `database/schema.sql`; `tests/test_storage.py` |
-| Release | bump `APP_VERSION` in `review/gui.py`, `AppVersion` in `packaging/installer.iss`, headers of `README.txt`/`INSTALL.txt`; add a CHANGES.md section |
+| Release | bump `APP_VERSION` in `review/gui.py`, `AppVersion` in `packaging/installer.iss`, headers of `README.txt`/`INSTALL.txt`; add a CHANGES.md section; merge to `main`, then push a tag `vX.Y`. `.github/workflows/release.yml` builds `Stock-Review-Setup.exe` + `Stock-Review-Portable.zip` on Windows and publishes the GitHub Release. Keep those asset names fixed: the website and README link to `releases/latest/download/<name>` |
 
 ## Gotchas
 

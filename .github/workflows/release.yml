@@ -1,0 +1,116 @@
+name: Build Windows app
+
+# Builds "Stock Review Setup.exe" (installer) and a portable zip on a Windows
+# runner, using the same PyInstaller spec + Inno Setup script as
+# packaging/build_exe.ps1.
+#
+#   * push a tag like v2.3   -> build + publish a GitHub Release with both files
+#   * push to any branch that touches the app/packaging -> build only (check +
+#     downloadable workflow artifact, no release)
+#   * "Run workflow" button   -> build only
+#
+# Release assets use fixed names so these links always serve the newest build:
+#   https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe
+#   https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Portable.zip
+
+on:
+  push:
+    tags: ["v*"]
+    branches: ["**"]
+    paths:
+      - "src/stock_analyzer/review/**"
+      - "packaging/**"
+      - "stock_review.py"
+      - "stock_review_gui.py"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install app dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install "yfinance==1.4.1" pandas requests beautifulsoup4 lxml "pyinstaller>=6.6" pyinstaller-hooks-contrib
+
+      - name: Run the app's offline tests
+        run: |
+          python tests/test_stock_review.py
+          python tests/test_cli.py
+          python tests/test_gui.py
+
+      - name: Freeze with PyInstaller
+        run: python -m PyInstaller packaging/stock_review_gui.spec --noconfirm --clean
+
+      - name: Check both exes exist
+        shell: pwsh
+        run: |
+          foreach ($e in @("dist\Stock Review\Stock Review.exe", "dist\Stock Review\Stock Review Terminal.exe")) {
+            if (-not (Test-Path $e)) { throw "missing: $e" }
+          }
+
+      # Fetches one ticker from Yahoo inside the frozen exe. Yahoo sometimes
+      # blocks CI machines, so a failure here is a warning, not a broken build.
+      - name: Smoke-test the frozen app
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $env:STOCK_REVIEW_SELFTEST = "1"
+          Start-Process -Wait -FilePath "dist\Stock Review\Stock Review.exe"
+          Get-ChildItem -Recurse "$env:USERPROFILE\Documents\Stock Review","dist\Stock Review" -Filter selftest_result.txt -ErrorAction SilentlyContinue |
+            ForEach-Object { Get-Content $_.FullName }
+
+      - name: Build installer with Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          & $iscc packaging\installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed ($LASTEXITCODE)" }
+
+      - name: Collect release files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item "packaging\installer_output\Stock Review Setup.exe" "out\Stock-Review-Setup.exe"
+          Compress-Archive -Path "dist\Stock Review" -DestinationPath "out\Stock-Review-Portable.zip"
+          Get-ChildItem out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-review-windows
+          path: out/*
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/Stock-Review-Setup.exe
+            out/Stock-Review-Portable.zip
+          body: |
+            ## Download
+
+            **[⬇ Stock-Review-Setup.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Stock-Review-Setup.exe)**: double-click it and follow the prompts.
+            No admin password and no Python needed.
+
+            If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**. It's only shown because the app is new.
+
+            Prefer not to install? Download **Stock-Review-Portable.zip**, extract it, and run `Stock Review.exe`.
+
+            See [CHANGES.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/CHANGES.md) for what's new.
+            Not financial advice.

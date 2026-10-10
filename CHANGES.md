@@ -1,3 +1,11 @@
+# Unreleased — scored-pipeline data fixes
+
+- **Empty yfinance `.info` is no longer cached as good data.** A rate-limited
+  (empty) pull used to be cached for the whole TTL and marked `data_ok=True`;
+  it now retries with backoff and, if still empty, is not cached.
+- **Negative debt/equity is treated as missing** (negative book equity), so
+  such companies no longer rank as the *least* leveraged. Scores change.
+
 # Changes — 2.3: review.md fixes, correctness + design (2026-07-16)
 
 The full [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) sweep against the

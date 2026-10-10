@@ -157,6 +157,32 @@ def test_windows_reserved_names_are_prefixed():
     print("OK sanitizer: Windows reserved device names prefixed")
 
 
+def test_empty_info_is_not_cached_or_ok():
+    """An empty .info (429) must retry, not be cached all day as data_ok=True."""
+    import types
+    class TK:
+        def __init__(self, t):
+            self.info = {}
+            self.upgrades_downgrades = None
+    fake = types.SimpleNamespace(Ticker=TK, __version__="9.9",
+                                 download=lambda *a, **k: pd.DataFrame())
+    saved = sys.modules.get("yfinance")
+    sys.modules["yfinance"] = fake
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            c = _collector(d, max_retries=2, backoff_base_seconds=0.0)
+            c.cfg.optional_providers = {}
+            rec = c.collect_one("AAPL")
+            assert rec["data_ok"] is False, rec["data_ok"]
+            assert not list(Path(d).rglob("*_info.json")), "empty info was cached"
+    finally:
+        if saved is None:
+            sys.modules.pop("yfinance", None)
+        else:
+            sys.modules["yfinance"] = saved
+    print("OK empty info: retried, not cached, data_ok False")
+
+
 def _run_all():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     print(f"Running {len(fns)} data-collection tests...\n")

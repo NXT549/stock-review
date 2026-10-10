@@ -142,7 +142,8 @@ widgets (not `ttk`) because they honour `relief`/`bd`/`bg`. Stdlib only.
 | `BTN_BLUE` | `#1668c8` | Open report |
 | `BTN_TEAL` | `#108282` | Open folder / Browse |
 | `BTN_PURPLE` | `#7a1fa2` | Copy path / Tip of the Day |
-| `GOLD` | `#b8860b` | lightbulb accent |
+| `GOLD` | `#b8860b` | lightbulb accent (decoration only, fails text contrast) |
+| `STATUS_AMBER` | `#664200` | "done but partial" status text (4.9:1 on FACE) |
 | `TITLE_PURPLE` / `TITLE_GREEN` | `#7a1fa2` / `#075c22` | group-box titles |
 
 Fonts: `MS Sans Serif 9` (UI; bold only for primary actions and group titles),
@@ -155,7 +156,8 @@ ratios. Check contrast before introducing a colour.
 
 ### Components (factories — always use these, never raw widgets)
 `TitleBar` (gradient caption), `button98(fill=…)` (raised bevel, coloured face
-brightens on hover), `group98` (groove box + coloured bold title), `label98`,
+brightens on hover; **disabled → flat silver face + `GRAYTEXT` label** so it can't
+look clickable), `group98` (groove box + coloured bold title), `label98`,
 `entry98` / `field98` (sunken white), `check98`, `radio98`, `option98` /
 `Dropdown98` (combobox popup clamped to the window, scrolls, flips upward),
 `tooltip98` (pale yellow), `menu98` (silver + navy highlight), `dialog98`
@@ -168,6 +170,10 @@ bar to change channel; can be hidden) → two group boxes side by side
 universe hint → **Where it lands** (purple) with live output-path preview →
 action bar (▶ Run review · ■ Cancel · Open report · Open folder · Copy path) →
 collapsible details log → sunken status bar (message · run timer · clock).
+Window sizing: `MIN_H` 600; the default and any remembered size are clamped to the
+screen (height − 80), and the DOS panel is the part that shrinks. Options is packed
+first so it keeps its natural width. Status messages carry a glyph — `(ok)` `(!)`
+`(x)` — so state never relies on colour alone.
 Menus: File (Recent reports), Quick picks, Extras (Crystal Ball Ctrl+8, Tip of the
 Day), Help (About with odometer). Splash on launch. Keys: F5/Enter run, Esc
 cancel, Ctrl+O open report, Ctrl+Shift+O open folder, Ctrl+L copy path.

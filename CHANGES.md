@@ -1,3 +1,23 @@
+# Changes — Unreleased: GUI layout, contrast and focus fixes
+
+From the UI review (visual design, usability, accessibility). GUI only — no
+scoring, fetch or report changes.
+
+- **The window now fits laptop screens.** Minimum height 860 → 600, the default
+  and any remembered size are clamped to the screen, and the Details log no
+  longer grows the window off-screen. The ASCII panel is what shrinks, so Run
+  and the status bar stay visible at 1366×768.
+- **Options no longer clips on the right** (Rich / Drop company names / Format).
+- **Disabled buttons look disabled**: flat silver face with a grey label
+  instead of a dimmed coloured one (contrast was 1.8–3.3:1).
+- **A run with failed tickers no longer says "All wrapped up".** The failure
+  count now also comes from the CLI's closing "N still failed" line, so retry
+  rounds can't hide it. Partial/cancelled text is dark amber (was 1.8:1) and
+  status messages carry a `(ok)` / `(!)` / `(x)` glyph.
+- Focus rings: every entry, button and the log keep a visible 2px ring; the
+  log is reachable with Tab and click. Ctrl+A in entry fields selects all.
+  7pt captions are now 8pt.
+
 # Changes — 2.3: review.md fixes, correctness + design (2026-07-16)
 
 The full [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) sweep against the

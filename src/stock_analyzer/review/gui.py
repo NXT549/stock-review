@@ -32,6 +32,7 @@ import json
 import os
 import queue
 import random
+import re
 import sys
 import threading
 import time
@@ -42,7 +43,7 @@ from pathlib import Path
 
 APP_VERSION = "2.3"
 APP_AUTHOR = "NXT"
-MIN_W, MIN_H = 720, 860   # smallest window the full layout fits into (see run())
+MIN_W, MIN_H = 760, 600   # smallest window the full layout fits into (see run())
 
 
 # --------------------------------------------------------------------------- #
@@ -148,6 +149,7 @@ def _icon_path() -> Path | None:
 
 
 BASE_DIR = _base_dir()
+_STILL_FAILED = re.compile(r"(\d+) still failed")
 SETTINGS_FILE = BASE_DIR / "gui_settings.json"
 
 
@@ -580,7 +582,9 @@ def run(test_close_ms: int | None = None) -> int:
     try:
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         def_w = max(MIN_W, min(1150, int(sw * 0.62)))
-        def_h = max(MIN_H, min(1250, int(sh * 0.88)))
+        # Never taller than the screen (minus taskbar/title bar): on a 768px
+        # laptop the Run button and status bar must stay on screen.
+        def_h = max(MIN_H, min(1250, int(sh * 0.88), sh - 80))
     except tk.TclError:
         def_w, def_h = 760, 900
     root.geometry(f"{def_w}x{def_h}")
@@ -635,7 +639,10 @@ def run(test_close_ms: int | None = None) -> int:
         try:
             w, h = (int(v) for v in geo.split("+", 1)[0].split("x"))
             if w >= MIN_W and h >= MIN_H:
-                root.geometry(geo)
+                # A size remembered on a bigger monitor may not fit this one.
+                w = min(w, root.winfo_screenwidth())
+                h = min(h, root.winfo_screenheight() - 80)
+                root.geometry(f"{w}x{h}" + (f"+{geo.split('+', 1)[1]}" if "+" in geo else ""))
         except (ValueError, tk.TclError):
             pass
 
@@ -658,7 +665,7 @@ def run(test_close_ms: int | None = None) -> int:
     screen_wrap = tk.Frame(dos, relief="sunken", bd=3, bg=T.CRT_BG)
     screen_wrap.pack(fill="both", expand=True)
     screen = tk.Text(screen_wrap, bg=T.CRT_BG, fg=T.CRT_FG, wrap="none",
-                     width=100, height=36, bd=0, highlightthickness=0,
+                     width=100, height=12, bd=0, highlightthickness=0,
                      font=T.MONO_FONT, state="disabled", cursor="arrow")
     screen.pack(fill="both", expand=True, padx=3, pady=3)
 
@@ -681,6 +688,12 @@ def run(test_close_ms: int | None = None) -> int:
 
     # ---- form: two Win98 group boxes, side by side ------------------------- #
     formrow = tk.Frame(outer, bg=T.FACE)
+
+    # Options is packed FIRST (on the right) so it always gets its natural
+    # width; "What to review" then takes whatever is left, instead of the
+    # other way round, which clipped Rich / Format on narrow windows.
+    opt = T.group98(formrow, "Options", fg=T.TITLE_GREEN)
+    opt.pack(side="right", fill="both", padx=(6, 0))
 
     uni = T.group98(formrow, "What to review", fg=T.NAVY)
     uni.pack(side="left", fill="both", expand=True)
@@ -741,12 +754,10 @@ def run(test_close_ms: int | None = None) -> int:
     T.button98(file_row, text="Browse...", command=_pick_file,
                fill=T.BTN_TEAL).grid(row=0, column=1, padx=(6, 0))
 
-    opt = T.group98(formrow, "Options", fg=T.TITLE_GREEN)
-    opt.pack(side="left", fill="both", padx=(6, 0))
     T.label98(opt, text="Limit").grid(row=0, column=0, sticky="w", pady=3)
     limit_entry = T.entry98(opt, limit_var, width=8)
     limit_entry.grid(row=0, column=1, sticky="w", padx=4, pady=3)
-    limit_caption = T.label98(opt, text="", fg=T.STATUS_RED, font=("MS Sans Serif", 7))
+    limit_caption = T.label98(opt, text="", fg=T.STATUS_RED, font=("MS Sans Serif", 8))
     limit_caption.grid(row=1, column=0, columnspan=2, sticky="w", padx=4)
     # De-emphasized: Workers is a secondary/advanced tuning knob (parallel
     # fetch count), not a primary decision like Limit or Format.
@@ -754,7 +765,7 @@ def run(test_close_ms: int | None = None) -> int:
         row=2, column=0, sticky="w", pady=3)
     workers_entry = T.entry98(opt, workers_var, width=8)
     workers_entry.grid(row=2, column=1, sticky="w", padx=4, pady=3)
-    workers_caption = T.label98(opt, text="", fg=T.STATUS_RED, font=("MS Sans Serif", 7))
+    workers_caption = T.label98(opt, text="", fg=T.STATUS_RED, font=("MS Sans Serif", 8))
     workers_caption.grid(row=3, column=0, columnspan=2, sticky="w", padx=4)
     T.label98(opt, text="Format").grid(row=4, column=0, sticky="w", pady=3)
     fmt_cb = T.option98(opt, fmt_var, ["md", "csv", "json"], width=6)
@@ -774,9 +785,10 @@ def run(test_close_ms: int | None = None) -> int:
         def _chk(*_):
             s = var.get().strip()
             ok = (not s) or (s.isdigit() and int(s) > 0)
+            # Always a 2px ring so keyboard focus stays visible; dark when invalid.
             entry.configure(bg=T.FIELD if ok else "#ffd9d9",
-                           highlightthickness=0 if ok else 2,
-                           highlightbackground=T.INK, highlightcolor=T.INK)
+                           highlightbackground=T.FIELD if ok else T.INK,
+                           highlightcolor=T.NAVY if ok else T.INK)
             caption.configure(text="" if ok else "positive whole number (or blank)")
         var.trace_add("write", _chk)
         _chk()
@@ -840,8 +852,13 @@ def run(test_close_ms: int | None = None) -> int:
     details_wrap = tk.Frame(outer, bg=T.FACE)  # packed on demand (see _toggle_details)
     log = tk.Text(details_wrap, height=7, wrap="word", state="disabled",
                   background=T.CRT_BG, foreground=T.CRT_FG, insertbackground=T.CRT_FG,
-                  relief="sunken", bd=2, highlightthickness=0, font=T.MONO_FONT)
+                  relief="sunken", bd=2, font=T.MONO_FONT, takefocus=1,
+                  highlightthickness=2, highlightbackground=T.FACE,
+                  highlightcolor=T.NAVY)
     log.pack(fill="both", expand=True)
+    # A disabled Text never takes focus on click; give it focus so the log can
+    # be scrolled / selected / copied with the keyboard (Tab reaches it too).
+    log.bind("<Button-1>", lambda _e: log.focus_set())
 
     # ---- status bar (message cell + run timer + tray clock, all sunken) ----- #
     statusbar = tk.Frame(outer, bg=T.FACE)
@@ -977,6 +994,7 @@ def run(test_close_ms: int | None = None) -> int:
             size, _, pos = root.geometry().partition("+")
             w, h = (int(v) for v in size.split("x"))
             h += delta * (details_wrap.winfo_reqheight() + 6)
+            h = min(h, root.winfo_screenheight() - 80)  # never grow off-screen
             root.geometry(f"{w}x{h}" + (f"+{pos}" if pos else ""))
         except (ValueError, tk.TclError):  # resize is best-effort polish
             pass
@@ -1095,6 +1113,7 @@ def run(test_close_ms: int | None = None) -> int:
         state["run_wall0"] = time.time()  # to tell a fresh report from stale
         state["last_prog"] = {}           # the current batch's progress snapshot
         state["odo_ok"] = 0               # ok-counts of batches already finished
+        state["still_failed"] = 0         # from cli.main's closing "Wrote ..." line
         state["last_note"] = None         # most recent CLI status note (failure text lands here)
         cancel_event.clear()
         run_btn.configure(state="disabled")
@@ -1139,6 +1158,12 @@ def run(test_close_ms: int | None = None) -> int:
                 kind, payload = log_queue.get_nowait()
                 if kind == "log":
                     _append(payload)  # type: ignore[arg-type]
+                    # cli.main ends with "Wrote <file> (N stocks, ... K still failed)";
+                    # that is the one count that covers retry rounds and runs
+                    # whose progress counters never reached the GUI.
+                    m = _STILL_FAILED.search(str(payload))
+                    if m:
+                        state["still_failed"] = int(m.group(1))
                 elif kind == "progress":
                     # Feed the odometer: a counter reset means a retry round
                     # started a new batch, so bank the finished batch's oks.
@@ -1184,7 +1209,8 @@ def run(test_close_ms: int | None = None) -> int:
             """'198 ok, 2 failed, 3:42' — from the batches this run pushed."""
             prog = state.get("last_prog") or {}
             n_ok = int(state.get("odo_ok", 0)) + int(prog.get("ok", 0) or 0)
-            n_fail = int(prog.get("failed", 0) or 0)
+            n_fail = max(int(prog.get("failed", 0) or 0),
+                         int(state.get("still_failed", 0)))
             bits = f"{n_ok} ok" + (f", {n_fail} failed" if n_fail else "")
             return f"{bits}, {int(elapsed) // 60}:{int(elapsed) % 60:02d}"
         # A cancelled run writes a PARTIAL report from whatever it fetched (see
@@ -1209,24 +1235,25 @@ def run(test_close_ms: int | None = None) -> int:
                 # Amber, not navy: navy means "still busy" (Running.../Cancelling...);
                 # this run is DONE, just partially. A quiet neutral beep (not the
                 # full success chime, not the error buzz) matches that in-between.
-                _status(f"Cancelled - partial report written ({_summary()}). "
-                        "Rerun the same setup to fill the gaps.", T.GOLD)
+                _status(f"(!) Cancelled - partial report written ({_summary()}). "
+                        "Rerun the same setup to fill the gaps.", T.STATUS_AMBER)
                 _jingle("partial")
             else:
-                _status("Cancelled - nothing fetched yet, so nothing was written.",
-                        T.GOLD)
+                _status("(!) Cancelled - nothing fetched yet, so nothing was written.",
+                        T.STATUS_AMBER)
             return
         code = result.get("code", 1)
         if code == 0:
             prog = state.get("last_prog") or {}
-            n_fail = int(prog.get("failed", 0) or 0)
+            n_fail = max(int(prog.get("failed", 0) or 0),
+                         int(state.get("still_failed", 0)))
             if n_fail:
                 # A partial-failure run isn't the same as a clean one: a fixed,
                 # measured lead line and an amber tone instead of a cheerful
                 # random pick from DONE_MSGS.
-                lead, color = "Partial success - some tickers failed.", T.GOLD
+                lead, color = "(!) Partial success - some tickers failed.", T.STATUS_AMBER
             else:
-                lead, color = random.choice(DONE_MSGS), T.TITLE_GREEN
+                lead, color = "(ok) " + random.choice(DONE_MSGS), T.TITLE_GREEN
             _status(f"{lead}  ({_summary()})  {DONE_TAGLINE}", color)
             _jingle("ok")
             path = state["path"]
@@ -1243,10 +1270,10 @@ def run(test_close_ms: int | None = None) -> int:
             # exit code whenever it's available.
             last_note = state.get("last_note")
             if last_note:
-                _status(last_note, T.STATUS_RED)
+                _status("(x) " + last_note, T.STATUS_RED)
             else:
                 msg = result.get("error") or f"exit code {code}"
-                _status(f"Finished with errors ({msg}).", T.STATUS_RED)
+                _status(f"(x) Finished with errors ({msg}).", T.STATUS_RED)
             if not details_var.get():
                 details_var.set(True)
                 _toggle_details()

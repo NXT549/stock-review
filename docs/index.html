@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Review</title>
+<meta property="og:title" content="Stock Review: free stock report app for Windows">
+<meta property="og:url" content="https://nxt549.github.io/stock-review/">
+<meta name="description" content="Stock Review: a free Windows app that pulls the latest Yahoo Finance numbers for a list of stocks and writes them into one tidy report you can hand to any AI. Not financial advice.">
+<style>
+  :root {
+    --face: #c0c0c0; --hilight: #ffffff; --light: #dfdfdf; --shadow: #808080; --dark: #000000;
+    --navy: #000080; --title-blue: #1084d0; --field: #ffffff; --ink: #000000; --gray: #4d4d4d;
+    --crt-bg: #000000; --crt-fg: #d6dde6; --green: #098828; --red: #c62828; --blue: #1668c8;
+    --teal: #108282; --purple: #7a1fa2; --title-green: #075c22; --tip: #ffffe1;
+    --desk: #008080; --phosphor: #33ff66;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --desk: #0b3b3b; }
+  }
+  :root[data-theme="dark"] { --desk: #0b3b3b; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--desk); color: var(--ink);
+    font: 14px/1.5 "MS Sans Serif", Tahoma, "Segoe UI", system-ui, sans-serif;
+  }
+  a { color: var(--navy); }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+
+  /* Win98 window chrome */
+  .win {
+    background: var(--face); margin: 0 0 20px;
+    border: 2px solid; border-color: var(--hilight) var(--dark) var(--dark) var(--hilight);
+    box-shadow: inset -1px -1px 0 var(--shadow), inset 1px 1px 0 var(--light);
+    padding: 3px;
+  }
+  .titlebar {
+    background: linear-gradient(90deg, var(--navy), var(--title-blue));
+    color: #fff; font-weight: bold; padding: 3px 6px;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .titlebar .btns { display: flex; gap: 2px; }
+  .titlebar .btns span {
+    width: 16px; height: 14px; background: var(--face); color: var(--ink);
+    font-size: 10px; line-height: 12px; text-align: center;
+    border: 1px solid; border-color: var(--hilight) var(--dark) var(--dark) var(--hilight);
+  }
+  .body { padding: 14px 16px; }
+  h1, h2, h3 { margin: 0 0 8px; line-height: 1.25; }
+  h1 { font-size: 28px; }
+  h2 { font-size: 18px; color: var(--navy); }
+  h3 { font-size: 15px; }
+  p { margin: 0 0 10px; }
+
+  .group {
+    border: 2px groove var(--hilight); padding: 14px 12px 10px; margin: 14px 0 6px; position: relative;
+  }
+  .group > .legend {
+    position: absolute; top: -10px; left: 10px; background: var(--face);
+    padding: 0 4px; font-weight: bold;
+  }
+  .g-navy > .legend { color: var(--navy); }
+  .g-green > .legend { color: var(--title-green); }
+  .g-purple > .legend { color: var(--purple); }
+
+  .btn {
+    display: inline-block; text-decoration: none; font-weight: bold; color: #fff;
+    padding: 6px 14px; margin: 4px 6px 4px 0;
+    border: 2px solid; border-color: rgba(255,255,255,.7) rgba(0,0,0,.8) rgba(0,0,0,.8) rgba(255,255,255,.7);
+  }
+  .btn:hover { filter: brightness(1.12); }
+  .btn:active { border-color: rgba(0,0,0,.8) rgba(255,255,255,.7) rgba(255,255,255,.7) rgba(0,0,0,.8); }
+  .btn:focus-visible { outline: 1px dotted var(--ink); outline-offset: 2px; }
+  .b-green { background: var(--green); }
+  .b-blue { background: var(--blue); }
+  .b-teal { background: var(--teal); }
+  .b-plain { background: var(--face); color: var(--ink); }
+
+  .crt {
+    background: var(--crt-bg); color: var(--phosphor);
+    font: 12px/1.25 Consolas, "Courier New", monospace; padding: 12px;
+    border: 2px solid; border-color: var(--shadow) var(--hilight) var(--hilight) var(--shadow);
+    overflow-x: auto; white-space: pre; margin: 0;
+  }
+  .crt .dim { color: var(--crt-fg); opacity: .75; }
+  .crt .r { color: #ff5555; }
+  .crt .y { color: #ffd75f; }
+
+  .field {
+    background: var(--field); padding: 10px 12px;
+    border: 2px solid; border-color: var(--shadow) var(--hilight) var(--hilight) var(--shadow);
+    font: 12.5px/1.45 Consolas, "Courier New", monospace; overflow-x: auto; white-space: pre;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  @media (max-width: 680px) { .grid2 { grid-template-columns: 1fr; } h1 { font-size: 22px; } }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin: 2px 0; }
+  ol li { margin: 4px 0; }
+  .tip {
+    background: var(--tip); border: 1px solid var(--ink); padding: 8px 10px; margin: 10px 0;
+  }
+  .muted { color: var(--gray); }
+  table { border-collapse: collapse; width: 100%; background: var(--field); }
+  th, td { text-align: left; padding: 5px 8px; border: 1px solid var(--shadow); vertical-align: top; }
+  th { background: var(--light); }
+  .status {
+    display: flex; gap: 2px; margin-top: 8px; font-size: 12px;
+  }
+  .status span {
+    padding: 2px 6px; border: 1px solid; border-color: var(--shadow) var(--hilight) var(--hilight) var(--shadow);
+  }
+  .status span:first-child { flex: 1; }
+  .scroll-x { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <section class="win" aria-labelledby="hero-title">
+    <div class="titlebar"><span>Stock Review 2.3 · pick · run · read</span><span class="btns" aria-hidden="true"><span>_</span><span>□</span><span>×</span></span></div>
+    <div class="body">
+      <h1 id="hero-title">Stock Review</h1>
+      <p>Pick a list of stocks: the ASX 200, the S&amp;P 500, all of Japan, or your own tickers. Click <b>Run</b>. Stock Review
+        pulls the latest numbers from Yahoo Finance and writes them into <b>one tidy report</b> that you can drop into any AI chat.</p>
+      <p class="muted">Free and Windows-only. Everything runs on your own computer. There's no AI inside the app.</p>
+      <a class="btn b-green" href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe">⬇ Download for Windows</a>
+      <a class="btn b-blue" href="https://github.com/nxt549/stock-review">View source on GitHub</a>
+      <a class="btn b-teal" href="#install">How to install</a>
+      <p class="muted" style="margin-top:6px">Windows 10/11 · free · ~40 MB · <a href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Portable.zip">portable zip</a> (no install) · <a href="https://github.com/nxt549/stock-review/releases">all versions</a></p>
+
+      <div class="group g-navy" style="margin-top:18px">
+        <span class="legend">MS-DOS Prompt - STOCK REVIEW</span>
+<pre class="crt" aria-label="Illustration of the app's ASCII loading screen">
+<span class="dim">C:\STOCKS&gt;</span> stock_review --source australia
+
+                    *            .        +          .
+          .                 ___                 *
+                 +         /   \      to the moon...
+                          | o o |
+      .                   |  ^  |        .            +
+                         /|_____|\
+                        /_|  |  |_\         *
+                          |__|__|
+                          <span class="y">/ \/ \</span>
+                         <span class="y">/ /\ \ \</span>      .
+                          <span class="r">'.''.'</span>
+
+ [████████████████████░░░░░░░░░░]  134/200  67%   ETA 1:12
+ tape: BHP.AX ✓  CBA.AX ✓  CSL.AX ✓  <span class="y">» WES.AX</span>  NAB.AX ✓  <span class="r">✗ XYZ.AX</span>
+</pre>
+        <div class="status"><span>Fetching… 131 ok, 3 failed, 1 retry</span><span>0:02:41</span><span>16:30</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="win" aria-labelledby="what">
+    <div class="titlebar"><span>What it does</span></div>
+    <div class="body">
+      <h2 id="what">One run gives you one file to hand to an AI</h2>
+      <div class="grid2">
+        <div class="group g-navy"><span class="legend">1. Pick</span>
+          <ul>
+            <li><b>Regions:</b> S&amp;P 500/400/600/1500, ASX 200, every ASX listing, Japan, UK, Germany, Hong Kong, Canada, India, plus small-cap sleeves and global combos</li>
+            <li><b>Sectors:</b> energy, mining, telecom, tech, financials, healthcare and more, optionally limited to one region</li>
+            <li><b>Your own list:</b> type tickers (<code>AAPL BHP.AX 7203.T</code>) or load a .txt or .csv file</li>
+          </ul>
+        </div>
+        <div class="group g-green"><span class="legend">2. Fetch</span>
+          <ul>
+            <li>For each company: size (in USD), valuation (P/E, PEG, P/B, P/S), quality (ROE, margin, growth, debt), dividends</li>
+            <li>Momentum: 1, 3, 6 and 12-month returns, distance from the 50- and 200-day averages, and from the 52-week high and low</li>
+            <li>Analyst rating, price target and upside</li>
+          </ul>
+        </div>
+      </div>
+      <div class="group g-purple"><span class="legend">3. Read</span>
+        <p>You get one date-stamped report. The default Markdown version is a compact table with a column legend and built-in
+          instructions for the AI that will read it. You can also export CSV for Excel or JSON for scripts.</p>
+<div class="field">Ticker,Name,Sector,Price,MktCapB,PE,FwdPE,ROE,RevGr,Div,1y,vs200d,Analyst,Upside
+AAPL,Apple,Tech,227.5,3450,34.6,29.8,157.4,6.1,0.4,18.2,4.9,B,8.3
+BHP.AX,BHP Group,Mat,41.2,141,16.9,12.4,19.8,-2.5,4.9,-6.0,-3.1,H,7.5
+7203.T,Toyota Motor,ConsDisc,2710,236,7.8,8.9,13.1,7.3,3.1,-9.4,-5.2,B,21.0</div>
+        <p class="muted" style="margin-top:6px">Example rows for illustration only, not real quotes. A blank cell means Yahoo didn't have the value. The app never guesses one.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="win" aria-labelledby="install">
+    <div class="titlebar"><span>Install</span></div>
+    <div class="body">
+      <h2 id="install">Install in about a minute</h2>
+      <ol>
+        <li><a href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe"><b>Download Stock-Review-Setup.exe</b></a>.</li>
+        <li>Open it. If you see a blue <i>"Windows protected your PC"</i> box, click <b>More info</b>, then <b>Run anyway</b>. This only means the app is new to Windows. You'll only see it once.</li>
+        <li>Click <b>Next → Install → Finish</b>. You don't need an admin password or Python.</li>
+        <li>Open <b>Stock Review</b> from your desktop, pick something from <b>Quick picks</b>, click <b>▶ Run review</b>, then click <b>Open report</b>.</li>
+      </ol>
+      <a class="btn b-green" href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe">⬇ Download Stock-Review-Setup.exe</a>
+      <div class="tip">💡 <b>Tip of the Day:</b> Yahoo limits how fast you can pull data on big runs. If some tickers say FAIL, wait a few
+        minutes and run the same thing again. It picks up where it left off and fills in the gaps.</div>
+      <p class="muted">Reports are saved to <code>Documents\Stock Review\reports</code>.</p>
+
+      <div class="group g-green"><span class="legend">Run from source (any OS)</span>
+<div class="field">git clone https://github.com/nxt549/stock-review
+cd stock-review
+pip install -r requirements.txt
+python stock_review_gui.py                 # the window
+python stock_review.py --source japan      # the command line
+python stock_review.py --list-groups       # every region and sector</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="win" aria-labelledby="honest">
+    <div class="titlebar"><span>The honesty rule</span></div>
+    <div class="body">
+      <h2 id="honest">It never makes up a number</h2>
+      <div class="scroll-x">
+      <table>
+        <tr><th>If…</th><th>Stock Review…</th></tr>
+        <tr><td>Yahoo doesn't have a value</td><td>leaves the cell blank (or shows <code>n/a</code> in rich mode). It never fills in 0 or a guess.</td></tr>
+        <tr><td>A ticker can't be fetched</td><td>lists it in a "could not fetch" section instead of quietly dropping it</td></tr>
+        <tr><td>Yahoo rate-limits you</td><td>retries politely with growing pauses, shows each retry, and saves its progress so a rerun resumes</td></tr>
+        <tr><td>You click Cancel</td><td>still writes everything fetched so far as a clearly marked partial report</td></tr>
+        <tr><td>A ticker doesn't really belong in the sector you picked</td><td>removes it and lists it, along with the industry that ruled it out</td></tr>
+      </table>
+      </div>
+      <p style="margin-top:10px">The app only connects to Yahoo Finance. There are no accounts and no telemetry.</p>
+    </div>
+  </section>
+
+  <section class="win" aria-labelledby="extras">
+    <div class="titlebar"><span>Little luxuries</span></div>
+    <div class="body">
+      <h2 id="extras">Built like a proper 90s program</h2>
+      <ul>
+        <li>13 ASCII-art channels play while it works (rocket, whale, bank vault, harbour…). Double-click the DOS title bar to switch.</li>
+        <li>Quick picks, tooltips, Recent reports, Tip of the Day, a Crystal Ball (Ctrl+8) and a lifetime odometer</li>
+        <li>A <b>Terminal</b> edition that runs the same engine with command-line flags and the animations in your console</li>
+        <li>For developers, the repo also includes a deterministic <b>0–100 scoring pipeline</b> with a backtest harness. See the
+          <a href="https://github.com/nxt549/stock-review#readme">README</a>.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="win" aria-label="Disclaimer">
+    <div class="titlebar"><span>⚠ Important</span></div>
+    <div class="body">
+      <p><b>Not financial advice.</b> Stock Review is an automated research screen that gathers numbers into a tidy file. Yahoo Finance
+        data can be wrong, delayed or missing, so check it before you act on anything. Decisions are yours (and ideally a licensed adviser's).</p>
+      <p class="muted">Made for fun by NXT.</p>
+    </div>
+  </section>
+
+</main>
+</body>
+</html>

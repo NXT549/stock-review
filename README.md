@@ -1,5 +1,14 @@
 # Stock Analyzer
 
+> ### ⬇ Just want the app?
+> **[Download Stock Review for Windows](https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe)**:
+> double-click it and follow the prompts. You don't need Python.
+> · Website: **[nxt549.github.io/stock-review](https://nxt549.github.io/stock-review/)**
+> · [Portable zip](https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Portable.zip)
+> · [All releases](https://github.com/nxt549/stock-review/releases)
+>
+> Everything below is for developers.
+
 A deterministic, inspectable stock-ranking system. It collects data for a
 configurable universe, scores every stock **0–100** using a transparent
 cross-sectional ranking methodology, writes a **single clean Markdown file** of

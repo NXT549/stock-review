@@ -4,7 +4,9 @@ Read this first. It is a map of the repo so you can go straight to the files a
 task needs instead of re-reading all ~15k lines. Deeper "why" lives in
 [DESIGN.md](DESIGN.md); user-facing docs are [README.md](README.md) (developer),
 [README.txt](README.txt) / [INSTALL.txt](INSTALL.txt) (end users of the Windows
-app), and [CHANGES.md](CHANGES.md) (release notes).
+app), and [CHANGES.md](CHANGES.md) (release notes). Known bugs and the
+prioritised fix list from the 2026-10 full review are in
+[IMPROVEMENTS.md](IMPROVEMENTS.md) — check it before starting related work.
 
 ## What this project is
 

@@ -159,6 +159,29 @@ def test_json_honours_lean_and_no_names():
     print("OK --format json honours --rich / --no-names")
 
 
+def test_tickers_file_and_comma_args_edge_cases():
+    import tempfile
+    from pathlib import Path
+    from stock_analyzer.review.universe import read_tickers_file
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / "bom.csv"   # Excel "CSV UTF-8": BOM + CRLF + header
+        f.write_bytes("\ufefftickers\r\nAAPL\r\nMSFT\r\n".encode("utf-8"))
+        assert read_tickers_file(f) == ["AAPL", "MSFT"]
+        f.write_text("# my list\nSymbol,Name\nAAPL,Apple\n", encoding="utf-8")
+        assert read_tickers_file(f) == ["AAPL"]   # header after a comment
+        f.write_text("Name,Ticker\nApple,AAPL\n", encoding="utf-8")
+        assert read_tickers_file(f) == ["AAPL"]   # ticker not in column 0
+        f.write_bytes("AAPL\nBHP.AX\n".encode("cp1252"))
+        assert read_tickers_file(f) == ["AAPL", "BHP.AX"]
+        f.write_bytes(b"AAPL\n\xe9\n")           # legacy code page: no crash
+        assert read_tickers_file(f)[0] == "AAPL"
+    ns = type("A", (), dict(tickers=["aapl,msft", "BRK.B"], file=None, sector=None,
+                            source=None, limit=None))()
+    from stock_analyzer.review.cli import resolve_tickers
+    assert resolve_tickers(ns) == ["AAPL", "MSFT", "BRK-B"]
+    print("OK ticker file / comma-separated args edge cases")
+
+
 def _run_all():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     print(f"Running {len(fns)} CLI tests...\n")

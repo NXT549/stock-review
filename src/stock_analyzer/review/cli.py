@@ -46,7 +46,9 @@ def resolve_tickers(args) -> list[str]:
         print(f"Note: {' and '.join(given[1:])} ignored — {given[0]} takes "
               f"precedence.", file=sys.stderr)
     if args.tickers:
-        tickers = [clean_symbol(t) for t in args.tickers if t.strip()]
+        # accept "AAPL,MSFT" / "AAPL, MSFT" typed as one argument, not just spaced args
+        tickers = [clean_symbol(t) for arg in args.tickers
+                   for t in arg.replace(",", " ").split()]
     elif args.file:
         tickers = [clean_symbol(t) for t in read_tickers_file(Path(args.file))]
     elif args.sector:
@@ -284,8 +286,14 @@ def main(argv=None, *, progress=None, cancel_event=None) -> int:
 
     out_path = (Path(args.out) if args.out
                 else Path("reports") / f"stock_review_{run_day}.{args.format}")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(content, encoding="utf-8")
+    try:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(content, encoding="utf-8")
+    except OSError as e:  # bad/locked/read-only path: say so; fetched tickers stay cached
+        print(f"Could not write '{out_path}': {e}. Fetched tickers are cached for "
+              "today - fix the path (--out) and rerun to finish instantly.", file=sys.stderr)
+        _note(f"Could not write report: {e}")
+        return 1
 
     print(f"\nWrote {out_path}  ({len(rows)} stocks"
           + (", partial - run cancelled" if cancelled else "")

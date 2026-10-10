@@ -1,3 +1,13 @@
+# Unreleased: edge-case fixes
+
+- **Tickers file / CLI input.** `--file` now survives a UTF-8 BOM (Excel "CSV
+  UTF-8"), non-UTF-8 files, a header that follows comment lines, and a
+  `ticker`/`symbol` column that is not first; previously the BOM glued onto the
+  first ticker and a cp1252 file crashed with a traceback. Positional
+  `AAPL,MSFT` is split into two tickers. A report that cannot be written
+  (bad path, read-only) now prints a clear message and exits 1 instead of a
+  traceback.
+
 # Changes — 2.3: review.md fixes, correctness + design (2026-07-16)
 
 The full [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) sweep against the

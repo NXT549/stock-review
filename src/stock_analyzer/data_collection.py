@@ -186,6 +186,11 @@ class DataCollector:
             time.sleep(float(self.dcfg.request_pause_seconds))  # polite throttle
             tk = yf.Ticker(ticker)
             info = dict(tk.info or {})
+            if not info:
+                # An empty .info is the tell-tale of a 429 / unknown symbol. Raise
+                # so _retry backs off, and so the tag-along key below can never make
+                # an empty pull look like data (cached all day, data_ok=True).
+                raise RuntimeError("empty info (rate-limited or unknown symbol)")
             info["_net_upgrades_90d"] = _net_upgrades_90d(tk)
             return info
 

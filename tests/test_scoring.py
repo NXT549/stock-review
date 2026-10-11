@@ -73,6 +73,14 @@ def test_negative_pe_is_missing():
     print("OK negative P/E -> missing")
 
 
+def test_negative_debt_to_equity_is_missing():
+    """Negative D/E (negative book equity) must not rank as 'least leveraged'."""
+    from stock_analyzer.metrics import derive_metric_inputs
+    assert derive_metric_inputs({"ticker": "X", "debt_to_equity": -150.0})["debt_to_equity"] is None
+    assert derive_metric_inputs({"ticker": "X", "debt_to_equity": 0.0})["debt_to_equity"] == 0.0
+    print("OK negative D/E -> missing")
+
+
 def test_missing_metric_reweights_within_category():
     """A stock missing one fundamental metric is scored on the rest, not zeroed.
 

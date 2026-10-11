@@ -70,7 +70,7 @@ REGISTRY: list[MetricDef] = [
     MetricDef("roa", "fundamentals", HIGHER, True,
               "Return on assets", "Higher ROA ranks better."),
     MetricDef("debt_to_equity", "fundamentals", LOWER, True,
-              "Debt / equity", "Lower leverage ranks better."),
+              "Debt / equity", "Lower leverage ranks better. Negative (negative-equity) is treated as missing."),
     MetricDef("fcf_yield", "fundamentals", HIGHER, True,
               "Free cash flow yield", "FCF / market cap. Higher ranks better (size-neutral vs raw FCF)."),
     MetricDef("cash_to_marketcap", "fundamentals", HIGHER, True,
@@ -185,7 +185,10 @@ def derive_metric_inputs(raw: dict) -> dict[str, float | None]:
     out["net_margin"] = _num(g("net_margin"))
     out["roe"] = _num(g("roe"))
     out["roa"] = _num(g("roa"))
-    out["debt_to_equity"] = _num(g("debt_to_equity"))
+    # Negative D/E means negative book equity, not "less leverage": ranked as-is it
+    # would be the best (lowest) leverage score. Treat as missing, like negative P/E.
+    de = _num(g("debt_to_equity"))
+    out["debt_to_equity"] = de if de is not None and de >= 0 else None
     out["fcf_yield"] = ratio("free_cash_flow", mcap)       # size-neutral
     out["cash_to_marketcap"] = ratio("total_cash", mcap)
 

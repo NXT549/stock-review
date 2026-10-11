@@ -63,6 +63,16 @@ def test_fmt_num_negative_magnitudes_unaffected():
     print("OK fmt_num: negative T/B/M values keep their sign")
 
 
+def test_universe_csv_keeps_na_like_tickers():
+    """Tickers NA / NAN / 0700 must survive the universe CSV read."""
+    import tempfile
+    from stock_analyzer.universe import _from_csv
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "u.csv"
+        p.write_text("ticker\nNA\nNAN\n0700\nAAPL\n", encoding="utf-8")
+        assert _from_csv(p) == ["NA", "NAN", "0700", "AAPL"], _from_csv(p)
+
+
 def _run_all():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     print(f"Running {len(fns)} util tests...\n")

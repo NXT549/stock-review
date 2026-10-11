@@ -9,12 +9,13 @@ Build from the project root with the build helper (recommended)::
 
     .venv313\\Scripts\\pyinstaller.exe packaging/stock_review_gui.spec --noconfirm
 
-Produces ONE one-folder bundle in ``dist/Stock Review/`` that contains TWO
+Produces ONE one-folder bundle in ``dist/Stock Review/`` that contains THREE
 executables sharing a single ``_internal/``:
 
     * ``Stock Review.exe``           -> the windowed Tkinter GUI (console=False)
     * ``Stock Review Terminal.exe``  -> the real CLI with ASCII animations
                                         (console=True)
+    * ``Stock Review Board.exe``     -> the dark "Live board" window (console=False)
 
 Both freeze the same ``packaging/frozen_entry.py``, which picks GUI vs CLI from
 the running exe's own filename — so there is exactly one Analysis, one shared
@@ -56,6 +57,7 @@ hiddenimports += [
 hiddenimports += [
     "stock_analyzer.review.gui_theme",
     "stock_analyzer.review.gui_anim",
+    "stock_analyzer.review.gui_board",
 ]
 
 a = Analysis(
@@ -113,9 +115,29 @@ exe_terminal = EXE(
     entitlements_file=None,
     icon=ICON,
 )
+# Third entry: the dark "Live board" window (gui_board). Windowed, like the GUI.
+exe_board = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name="Stock Review Board",
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=False,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=ICON,
+)
 coll = COLLECT(
     exe_gui,
     exe_terminal,
+    exe_board,
     a.binaries,
     a.datas,
     strip=False,

@@ -1,3 +1,9 @@
+# Unreleased: Live board in the Windows build
+
+- The installer and portable zip now include **Stock Review Board.exe** (the dark
+  Live board window) plus a Start menu shortcut. The release workflow can also
+  upload a build to an existing release via "Run workflow" + `release_tag`.
+
 # Unreleased — scored-pipeline data fixes
 
 - **Empty yfinance `.info` is no longer cached as good data.** A rate-limited

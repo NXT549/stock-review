@@ -50,7 +50,8 @@ BTN_RED   = "#c62828"   # Cancel
 BTN_BLUE  = "#1668c8"   # Open report
 BTN_TEAL  = "#108282"   # Open folder / Browse
 BTN_PURPLE = "#7a1fa2"  # Copy path / Tip of the Day
-GOLD = "#b8860b"        # Tip-of-the-Day lightbulb accent
+GOLD = "#b8860b"        # Tip-of-the-Day lightbulb accent (decoration only — too light for text)
+STATUS_AMBER = "#664200"  # "done, but partial" status text (4.9:1 against FACE)
 
 # Coloured group-box titles (bold, on the silver groove).
 TITLE_PURPLE = "#7a1fa2"
@@ -85,6 +86,12 @@ def _lighten(c: str, t: float = 0.28) -> str:
     return _mix(c, "#ffffff", t)
 
 
+def _entry_select_all(event) -> str:
+    event.widget.select_range(0, "end")
+    event.widget.icursor("end")
+    return "break"
+
+
 def apply_root(root: tk.Tk) -> None:
     """Silver background + sane global defaults for the whole widget tree."""
     root.configure(bg=FACE)
@@ -94,6 +101,10 @@ def apply_root(root: tk.Tk) -> None:
     root.option_add("*Font", UI_FONT_STR)
     root.option_add("*background", FACE)
     root.option_add("*foreground", INK)
+    # Tk's Entry binds Ctrl+A to "line start" (emacs style); Windows users
+    # expect select-all, and a half-replaced ticker list is an easy mistake.
+    root.bind_class("Entry", "<Control-Key-a>", _entry_select_all)
+    root.bind_class("Entry", "<Control-Key-A>", _entry_select_all)
 
 
 # --------------------------------------------------------------------------- #
@@ -135,17 +146,46 @@ class TitleBar(tk.Canvas):
 # --------------------------------------------------------------------------- #
 # Colour + hover push button (still a real bevelled Win98 button)
 # --------------------------------------------------------------------------- #
+class _Button98(tk.Button):
+    """A tk.Button whose face follows its state. Tk only dims the label of a
+    disabled button, which on a coloured face (blue/teal/purple/red) leaves it
+    looking clickable — so disabling also swaps the face to flat silver, and
+    enabling restores the accent colour."""
+
+    def configure(self, cnf=None, **kw):  # type: ignore[override]
+        res = super().configure(cnf, **kw)
+        state = (cnf.get("state") if isinstance(cnf, dict) else None) or kw.get("state")
+        if state is not None and getattr(self, "_accent", None):
+            if str(state) == "disabled":
+                super().configure(bg=FACE, fg=GRAYTEXT, relief="groove",
+                                  cursor="arrow")
+            else:
+                super().configure(bg=self._accent, fg=self._accent_fg,
+                                  relief="raised", cursor="hand2")
+        return res
+
+    config = configure
+
+
 def button98(parent: tk.Misc, *, fill: str | None = None, fg: str | None = None,
              **kw) -> tk.Button:
     """A raised, bevelled Win98 push button. Pass ``fill=`` for a coloured face
-    (white label, brightens on hover); omit it for the classic silver button."""
+    (white label, brightens on hover); omit it for the classic silver button.
+    Coloured buttons go flat silver with a GRAYTEXT label while disabled."""
     base = fill or FACE
     hover = _lighten(base) if fill else LIGHT
     txt = fg or (NAVY_TXT if fill else INK)
-    b = tk.Button(parent, relief="raised", bd=2, bg=base, fg=txt,
+    b = _Button98(parent, relief="raised", bd=2, bg=base, fg=txt,
                   activebackground=hover, activeforeground=txt,
+                  disabledforeground=GRAYTEXT,
+                  # 2px dark ring so keyboard focus shows on any face colour
+                  highlightthickness=2, highlightbackground=FACE,
+                  highlightcolor=INK,
                   font=UI_FONT_B if fill else UI_FONT, padx=10, pady=3,
                   cursor="hand2", **kw)
+    b._accent, b._accent_fg = fill, txt
+    if fill and str(b["state"]) == "disabled":
+        b.configure(state="disabled")  # apply the silver face to a born-disabled button
 
     def _enter(_e):
         if str(b["state"]) != "disabled":

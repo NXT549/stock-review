@@ -137,6 +137,31 @@ def test_done_payload_cancelled_from_exit_code():
     print("OK done_payload: cancelled == (exit code 130)")
 
 
+def _contrast(fg: str, bg: str) -> float:
+    def lum(h):
+        c = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    a, b = sorted((lum(fg), lum(bg)), reverse=True)
+    return (a + 0.05) / (b + 0.05)
+
+
+def test_status_colours_and_layout_constants():
+    from stock_analyzer.review import gui_theme as T
+    for fg in (T.STATUS_AMBER, T.STATUS_RED, T.TITLE_GREEN, T.GRAYTEXT):
+        assert _contrast(fg, T.FACE) >= 4.5, fg
+    # the window must fit a 768px-high laptop screen (taskbar + title bar spare)
+    assert gui.MIN_H <= 768 - 80, gui.MIN_H
+    print("OK status colours clear AA; MIN_H fits a 768px screen")
+
+
+def test_still_failed_parser():
+    m = gui._STILL_FAILED.search("Wrote r.md  (5 stocks, 2 from cache, 3 still failed)")
+    assert m and int(m.group(1)) == 3
+    assert gui._STILL_FAILED.search("Wrote r.md  (5 stocks)") is None
+    print("OK still-failed parser")
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

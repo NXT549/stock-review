@@ -33,8 +33,14 @@ from stock_analyzer.review.gui import env_flag  # noqa: E402  (light import; Tk 
 _terminal = ("terminal" in Path(sys.executable).stem.lower()
              and not env_flag("STOCK_REVIEW_SELFTEST"))
 
+# "Board" in the exe name => the dark Live board window (same engine, other UI).
+_board = ("board" in Path(sys.executable).stem.lower()
+          and not env_flag("STOCK_REVIEW_SELFTEST"))
+
 if _terminal:
     from stock_analyzer.review.cli import main   # full ASCII art, all CLI flags
+elif _board:
+    from stock_analyzer.review.gui_board import main  # dark Live board window
 else:
     from stock_analyzer.review.gui import main    # windowed GUI (or selftest)
 

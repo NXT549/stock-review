@@ -1,16 +1,17 @@
 # Packaging the desktop app
 
 The review tool ships as a Windows desktop app frozen with PyInstaller — it runs
-with **no Python install** on the target machine. One build produces **two
+with **no Python install** on the target machine. One build produces **three
 executables** that share a single `_internal/` bundle:
 
 | Exe | What it is | Console |
 |-----|------------|---------|
 | `Stock Review.exe`          | the windowed Tkinter GUI | none (`console=False`) |
 | `Stock Review Terminal.exe` | the real CLI + ASCII animations | yes (`console=True`) |
+| `Stock Review Board.exe`    | the dark "Live board" window | none (`console=False`) |
 
-Both freeze the same `packaging/frozen_entry.py`, which picks GUI vs CLI from the
-running exe's own filename — one `Analysis`, one bundle, zero drift between the
+Both freeze the same `packaging/frozen_entry.py`, which picks GUI / CLI / Live board from
+the running exe's own filename — one `Analysis`, one bundle, zero drift between the
 two. The GUI is a thin front-end over `stock_analyzer.review.cli.main`.
 
 ## Run it from source (no build)

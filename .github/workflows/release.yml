@@ -22,8 +22,14 @@ on:
       - "packaging/**"
       - "stock_review.py"
       - "stock_review_gui.py"
+      - "stock_review_board.py"
       - ".github/workflows/release.yml"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing release tag to upload the build to (e.g. v2.3). Replaces assets with the same name. Leave empty to build only."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -48,6 +54,7 @@ jobs:
           python tests/test_stock_review.py
           python tests/test_cli.py
           python tests/test_gui.py
+          python tests/test_gui_board.py
 
       - name: Freeze with PyInstaller
         run: python -m PyInstaller packaging/stock_review_gui.spec --noconfirm --clean
@@ -55,7 +62,7 @@ jobs:
       - name: Check both exes exist
         shell: pwsh
         run: |
-          foreach ($e in @("dist\Stock Review\Stock Review.exe", "dist\Stock Review\Stock Review Terminal.exe")) {
+          foreach ($e in @("dist\Stock Review\Stock Review.exe", "dist\Stock Review\Stock Review Terminal.exe", "dist\Stock Review\Stock Review Board.exe")) {
             if (-not (Test-Path $e)) { throw "missing: $e" }
           }
 
@@ -114,3 +121,12 @@ jobs:
 
             See [CHANGES.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/CHANGES.md) for what's new.
             Not financial advice.
+
+      - name: Upload build to an existing release
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: |
+            out/Stock-Review-Setup.exe
+            out/Stock-Review-Portable.zip

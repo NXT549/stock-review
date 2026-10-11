@@ -42,6 +42,7 @@ Source: "..\dist\Stock Review\*"; DestDir: "{app}"; \
 Name: "{autodesktop}\Stock Review";        Filename: "{app}\Stock Review.exe";          Tasks: desktopicon
 Name: "{group}\Stock Review";              Filename: "{app}\Stock Review.exe"
 Name: "{group}\Stock Review (Terminal)";   Filename: "{app}\Stock Review Terminal.exe"
+Name: "{group}\Stock Review (Live board)"; Filename: "{app}\Stock Review Board.exe"
 Name: "{group}\Uninstall Stock Review";    Filename: "{uninstallexe}"
 
 [Tasks]

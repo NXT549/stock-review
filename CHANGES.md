@@ -9,6 +9,19 @@
   NASDAQ and ASX lists were read with pandas defaults, so `NA`/`NAN` (e.g. ASX
   Nanosonics) vanished and numeric codes like `0700` lost their zeros.
 
+# Unreleased: edge-case fixes
+
+- **Tickers file / CLI input.** `--file` now survives a UTF-8 BOM (Excel "CSV
+  UTF-8"), non-UTF-8 files, a header that follows comment lines, and a
+  `ticker`/`symbol` column that is not first; previously the BOM glued onto the
+  first ticker and a cp1252 file crashed with a traceback. Positional
+  `AAPL,MSFT` is split into two tickers. A report that cannot be written
+  (bad path, read-only) now prints a clear message and exits 1 instead of a
+  traceback. A failed constituent-list scrape (`--source`/`--sector`, e.g. offline
+  or Wikipedia throttling) prints a clean message instead of a traceback, and the
+  GUI rejects tickers starting with `-` and non-ASCII digits in Limit/Workers
+  instead of crashing the run.
+
 # Changes — 2.3: review.md fixes, correctness + design (2026-07-16)
 
 The full [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) sweep against the

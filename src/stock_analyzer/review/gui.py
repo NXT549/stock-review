@@ -359,6 +359,9 @@ def build_argv(cfg: dict) -> list[str]:
         raw = (cfg.get("tickers") or "").replace(",", " ").split()
         if not raw:
             raise ValueError("Enter at least one ticker (e.g. AAPL MSFT NVDA).")
+        bad = [t for t in raw if t.startswith("-")]
+        if bad:  # argparse would read these as flags and abort the run
+            raise ValueError(f"Tickers can't start with '-': {', '.join(bad)}")
         argv += raw  # positional tickers override everything else
     elif mode == "file":
         path = (cfg.get("file") or "").strip()
@@ -382,13 +385,13 @@ def build_argv(cfg: dict) -> list[str]:
 
     limit = str(cfg.get("limit") or "").strip()
     if limit:
-        if not limit.isdigit() or int(limit) <= 0:
+        if not (limit.isascii() and limit.isdigit()) or int(limit) <= 0:
             raise ValueError("Limit must be a positive whole number (or blank).")
         argv += ["--limit", limit]
 
     workers = str(cfg.get("workers") or "").strip()
     if workers:
-        if not workers.isdigit() or int(workers) <= 0:
+        if not (workers.isascii() and workers.isdigit()) or int(workers) <= 0:
             raise ValueError("Workers must be a positive whole number (or blank).")
         argv += ["--workers", workers]
 

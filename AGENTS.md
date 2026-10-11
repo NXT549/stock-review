@@ -67,9 +67,11 @@ src/stock_analyzer/
     gui.py                  Tk app (Win98 style): run(), build_argv(), settings, dialogs, menus
     gui_theme.py            Win98 palette + widget factories (button98, group98, Dropdown98, …)
     gui_anim.py             TkAnimator: renders ascii_art scenes into a Tk Text widget
+    gui_board.py            "Live board": dark table-first window (opt-in), BoardModel/classify_error are pure
     ascii_art.py            13 ~100×30 ANSI scenes + HUD; Animator for real terminals
 stock_review.py             CLI shim; re-exports the whole review namespace (tests import it)
 stock_review_gui.py         GUI launcher (what PyInstaller freezes)
+stock_review_board.py       launcher for the Live board window (not frozen yet)
 packaging/                  PyInstaller spec, frozen_entry.py (GUI vs Terminal by exe name), Inno Setup .iss
 scheduling/                 cron, Windows Task Scheduler, Docker examples for run_daily.py
 database/schema.sql         generated SQL mirror of storage/models.py
@@ -80,7 +82,7 @@ docs/                       GitHub Pages site (static; deployed by .github/workf
 ```
 
 Runtime-only (gitignored): `data/cache/`, `data/review_cache/<date>/`, `logs/`,
-`reports/*`, `database/*.db`, `gui_settings.json`, `build/`, `dist/`.
+`reports/*`, `database/*.db`, `gui_settings.json`, `gui_board_settings.json`, `build/`, `dist/`.
 
 ## Commands
 
@@ -90,6 +92,7 @@ python scripts/run_minimal_slice.py --synthetic   # offline end-to-end pipeline 
 python stock_review.py --list-groups     # no network
 python stock_review.py AAPL MSFT --out reports/t.md   # needs network (yfinance)
 python stock_review_gui.py               # Tk window (needs a display)
+python stock_review_board.py             # the dark "Live board" window
 ```
 
 **Tests** are plain scripts (pytest optional, not required). Run all:
@@ -122,6 +125,7 @@ There is no linter/formatter config in the repo; match surrounding style
 | Add a `--sector` | `review/universe.py` `SECTORS` + `SECTOR_ALIASES` |
 | New CLI flag | `review/cli.py` + `gui.py` `build_argv()` (if exposed) + `tests/test_cli.py` / `test_gui.py` |
 | GUI look | `review/gui_theme.py` tokens/factories — see DESIGN.md "GUI design system" |
+| Live board window | `review/gui_board.py` (palette `P`, `BoardModel`); reuses `gui.build_argv` / `_run_review`; `tests/test_gui_board.py` |
 | New ASCII scene | `review/ascii_art.py` → append to `ANIMATIONS` (same dict shape); GUI picks it up automatically |
 | DB schema | `storage/models.py` → regenerate `database/schema.sql`; `tests/test_storage.py` |
 | Release | bump `APP_VERSION` in `review/gui.py`, `AppVersion` in `packaging/installer.iss`, headers of `README.txt`/`INSTALL.txt`; add a CHANGES.md section; merge to `main`, then push a tag `vX.Y`. `.github/workflows/release.yml` builds `Stock-Review-Setup.exe` + `Stock-Review-Portable.zip` on Windows and publishes the GitHub Release. Keep those asset names fixed: the website and README link to `releases/latest/download/<name>` |

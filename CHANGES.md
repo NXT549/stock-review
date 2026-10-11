@@ -1,8 +1,10 @@
-# Unreleased: Live board in the Windows build
+# Unreleased: Live board is the main Windows app
 
-- The installer and portable zip now include **Stock Review Board.exe** (the dark
-  Live board window) plus a Start menu shortcut. The release workflow can also
-  upload a build to an existing release via "Run workflow" + `release_tag`.
+- **`Stock Review.exe` (desktop icon, Start menu, "Launch now") now opens the dark
+  Live board.** The original Win98 window is still there as `Stock Review
+  Classic.exe` ("Stock Review (Classic)" in the Start menu). The release
+  workflow can also upload a build to an existing release via "Run workflow" +
+  `release_tag`.
 
 # Unreleased — scored-pipeline data fixes
 

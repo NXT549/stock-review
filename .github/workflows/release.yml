@@ -62,7 +62,7 @@ jobs:
       - name: Check both exes exist
         shell: pwsh
         run: |
-          foreach ($e in @("dist\Stock Review\Stock Review.exe", "dist\Stock Review\Stock Review Terminal.exe", "dist\Stock Review\Stock Review Board.exe")) {
+          foreach ($e in @("dist\Stock Review\Stock Review.exe", "dist\Stock Review\Stock Review Terminal.exe", "dist\Stock Review\Stock Review Classic.exe")) {
             if (-not (Test-Path $e)) { throw "missing: $e" }
           }
 

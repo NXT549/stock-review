@@ -6,11 +6,11 @@ executables** that share a single `_internal/` bundle:
 
 | Exe | What it is | Console |
 |-----|------------|---------|
-| `Stock Review.exe`          | the windowed Tkinter GUI | none (`console=False`) |
+| `Stock Review.exe`          | the dark Live board window | none (`console=False`) |
 | `Stock Review Terminal.exe` | the real CLI + ASCII animations | yes (`console=True`) |
-| `Stock Review Board.exe`    | the dark "Live board" window | none (`console=False`) |
+| `Stock Review Classic.exe`  | the original Win98 window | none (`console=False`) |
 
-Both freeze the same `packaging/frozen_entry.py`, which picks GUI / CLI / Live board from
+Both freeze the same `packaging/frozen_entry.py`, which picks Live board / Classic / CLI from
 the running exe's own filename — one `Analysis`, one bundle, zero drift between the
 two. The GUI is a thin front-end over `stock_analyzer.review.cli.main`.
 

@@ -67,11 +67,11 @@ src/stock_analyzer/
     gui.py                  Tk app (Win98 style): run(), build_argv(), settings, dialogs, menus
     gui_theme.py            Win98 palette + widget factories (button98, group98, Dropdown98, …)
     gui_anim.py             TkAnimator: renders ascii_art scenes into a Tk Text widget
-    gui_board.py            "Live board": dark table-first window (opt-in), BoardModel/classify_error are pure
+    gui_board.py            "Live board": dark table-first window (main app in the Windows build), BoardModel/classify_error are pure
     ascii_art.py            13 ~100×30 ANSI scenes + HUD; Animator for real terminals
 stock_review.py             CLI shim; re-exports the whole review namespace (tests import it)
 stock_review_gui.py         GUI launcher (what PyInstaller freezes)
-stock_review_board.py       launcher for the Live board window (not frozen yet)
+stock_review_board.py       launcher for the Live board window (frozen as the main "Stock Review.exe"; Win98 GUI = "Stock Review Classic.exe")
 packaging/                  PyInstaller spec, frozen_entry.py (GUI vs Terminal by exe name), Inno Setup .iss
 scheduling/                 cron, Windows Task Scheduler, Docker examples for run_daily.py
 database/schema.sql         generated SQL mirror of storage/models.py

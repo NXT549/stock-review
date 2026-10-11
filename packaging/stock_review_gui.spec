@@ -12,10 +12,10 @@ Build from the project root with the build helper (recommended)::
 Produces ONE one-folder bundle in ``dist/Stock Review/`` that contains THREE
 executables sharing a single ``_internal/``:
 
-    * ``Stock Review.exe``           -> the windowed Tkinter GUI (console=False)
+    * ``Stock Review.exe``           -> the dark "Live board" window (console=False)
     * ``Stock Review Terminal.exe``  -> the real CLI with ASCII animations
                                         (console=True)
-    * ``Stock Review Board.exe``     -> the dark "Live board" window (console=False)
+    * ``Stock Review Classic.exe``   -> the original Win98 window (console=False)
 
 Both freeze the same ``packaging/frozen_entry.py``, which picks GUI vs CLI from
 the running exe's own filename — so there is exactly one Analysis, one shared
@@ -115,13 +115,14 @@ exe_terminal = EXE(
     entitlements_file=None,
     icon=ICON,
 )
-# Third entry: the dark "Live board" window (gui_board). Windowed, like the GUI.
-exe_board = EXE(
+# Third entry: the original Win98 window, kept as "Stock Review Classic". The
+# plain "Stock Review" exe now opens the dark Live board (see frozen_entry.py).
+exe_classic = EXE(
     pyz,
     a.scripts,
     [],
     exclude_binaries=True,
-    name="Stock Review Board",
+    name="Stock Review Classic",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -137,7 +138,7 @@ exe_board = EXE(
 coll = COLLECT(
     exe_gui,
     exe_terminal,
-    exe_board,
+    exe_classic,
     a.binaries,
     a.datas,
     strip=False,

@@ -3,7 +3,8 @@
 
 The installer ships two executables that share one ``_internal/`` bundle:
 
-    * ``Stock Review.exe``           -> the windowed Tkinter GUI (console=False)
+    * ``Stock Review.exe``           -> the dark Live board window (console=False)
+    * ``Stock Review Classic.exe``   -> the original Win98 window (console=False)
     * ``Stock Review Terminal.exe``  -> the real CLI with ASCII animations
                                         (console=True)
 
@@ -33,16 +34,18 @@ from stock_analyzer.review.gui import env_flag  # noqa: E402  (light import; Tk 
 _terminal = ("terminal" in Path(sys.executable).stem.lower()
              and not env_flag("STOCK_REVIEW_SELFTEST"))
 
-# "Board" in the exe name => the dark Live board window (same engine, other UI).
-_board = ("board" in Path(sys.executable).stem.lower()
-          and not env_flag("STOCK_REVIEW_SELFTEST"))
+# "Classic" in the exe name => the original Win98 window. The plain
+# "Stock Review.exe" now opens the dark Live board (same engine, newer UI).
+# The selftest always uses the classic GUI worker path.
+_classic = ("classic" in Path(sys.executable).stem.lower()
+            or env_flag("STOCK_REVIEW_SELFTEST"))
 
 if _terminal:
     from stock_analyzer.review.cli import main   # full ASCII art, all CLI flags
-elif _board:
-    from stock_analyzer.review.gui_board import main  # dark Live board window
+elif _classic:
+    from stock_analyzer.review.gui import main    # Win98 window (or selftest)
 else:
-    from stock_analyzer.review.gui import main    # windowed GUI (or selftest)
+    from stock_analyzer.review.gui_board import main  # dark Live board (default)
 
 if __name__ == "__main__":
     raise SystemExit(main())

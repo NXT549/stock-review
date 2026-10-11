@@ -18,6 +18,7 @@ packaging/installer_output/
 data/cache/
 data/review_cache/
 gui_settings.json
+gui_board_settings.json
 logs/*.log
 database/*.db
 database/*.sqlite

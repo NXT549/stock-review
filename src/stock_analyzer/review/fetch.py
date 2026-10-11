@@ -377,8 +377,9 @@ def _fetch_batch(tickers: list[str], workers: int, *, cache_dir=None,
                 rows.append(rec)
                 flag = "ok"
             if animator is not None:
+                extra = {"rec": rec} if getattr(animator, "wants_rec", False) else {}
                 animator.update(done, ticker=rec["ticker"],
-                                ok=len(rows), failed=len(failures))
+                                ok=len(rows), failed=len(failures), **extra)
             elif done % 25 == 0 or done == total or rec.get("error"):
                 print(f"  [{done:>4}/{total}] {rec['ticker']:<8} {flag}", file=sys.stderr)
 

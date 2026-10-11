@@ -195,6 +195,25 @@ the same frames with Tk colour tags. HUD: progress bar, rate, ETA, ticker tape
 
 ---
 
+### Live board (`review/gui_board.py`) — second window, opt-in
+
+Dark, table-first, stdlib Tk/ttk. It is a *presentation* layer only: it builds
+the same argv (`gui.build_argv`), runs the same worker (`gui._run_review`) and
+never changes report contents. Rules:
+
+- One accent (muted teal) plus status colours used **only** for status (green
+  fetched, amber retrying, red failed). No gradients, glow, emoji or confetti.
+- Every number on screen is real: table rows come from the run's own events and
+  the tape shows fetched tickers' 1-month return. Unknown -> omitted, never 0.
+  There is no score and nothing reads as a recommendation.
+- Counts are cumulative across the whole run (`BoardModel`); a retry round's
+  smaller batch never shrinks the total, and failures between rounds read as
+  "retrying". Failures end up named on the result card (project rule 5).
+- The fun is small and contained: the ASCII rocket strip, one plain mood
+  sentence, a pulse dot and a `>` marker on the progress bar.
+- `BoardProgress.wants_rec = True` makes `fetch._fetch_batch` hand it each
+  ticker's record; sinks without the flag keep the old `update()` signature.
+
 ## 7. Packaging
 
 PyInstaller one-folder bundle with two exes from one `frozen_entry.py`:

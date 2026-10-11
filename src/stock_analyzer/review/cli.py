@@ -34,6 +34,19 @@ from .universe import (DEFAULT_TICKERS, REGION_RECORDS, SECTORS, SOURCES,
                        verify_loose_industry)
 
 
+def _scrape(fn, what: str) -> list[str]:
+    """Run a constituent-list scrape; turn a network/parse failure (offline,
+    Wikipedia 429, changed table layout) into a clean message, not a traceback."""
+    try:
+        return fn()
+    except (SystemExit, KeyboardInterrupt):
+        raise
+    except Exception as e:  # noqa: BLE001 - requests/pandas/lxml raise many types
+        raise SystemExit(f"Could not fetch the '{what}' constituent list "
+                         f"({type(e).__name__}: {e}). Check your connection and retry, "
+                         "or pass tickers directly / use --file.") from e
+
+
 def resolve_tickers(args) -> list[str]:
     # Several ticker sources can be supplied at once; say which one wins instead
     # of silently ignoring the rest. --sector + --source is a genuine combination
@@ -46,7 +59,9 @@ def resolve_tickers(args) -> list[str]:
         print(f"Note: {' and '.join(given[1:])} ignored — {given[0]} takes "
               f"precedence.", file=sys.stderr)
     if args.tickers:
-        tickers = [clean_symbol(t) for t in args.tickers if t.strip()]
+        # accept "AAPL,MSFT" / "AAPL, MSFT" typed as one argument, not just spaced args
+        tickers = [clean_symbol(t) for arg in args.tickers
+                   for t in arg.replace(",", " ").split()]
     elif args.file:
         tickers = [clean_symbol(t) for t in read_tickers_file(Path(args.file))]
     elif args.sector:
@@ -58,12 +73,12 @@ def resolve_tickers(args) -> list[str]:
                 f"'{region}'. Use one of: {', '.join(sorted(REGION_RECORDS))}.")
         print(f"Fetching '{region}' constituents and filtering to sector "
               f"'{sector_key}'...", file=sys.stderr)
-        tickers = tickers_for_sector(sector_key, region)
+        tickers = _scrape(lambda: tickers_for_sector(sector_key, region), region)
         if not tickers:
             raise SystemExit(f"No '{sector_key}' names found in region '{region}'.")
     elif args.source:
         print(f"Fetching '{args.source}' constituent list...", file=sys.stderr)
-        tickers = SOURCES[args.source]()
+        tickers = _scrape(SOURCES[args.source], args.source)
     else:
         tickers = list(DEFAULT_TICKERS)
     # de-dupe, preserve order
@@ -284,8 +299,14 @@ def main(argv=None, *, progress=None, cancel_event=None) -> int:
 
     out_path = (Path(args.out) if args.out
                 else Path("reports") / f"stock_review_{run_day}.{args.format}")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(content, encoding="utf-8")
+    try:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(content, encoding="utf-8")
+    except OSError as e:  # bad/locked/read-only path: say so; fetched tickers stay cached
+        print(f"Could not write '{out_path}': {e}. Fetched tickers are cached for "
+              "today - fix the path (--out) and rerun to finish instantly.", file=sys.stderr)
+        _note(f"Could not write report: {e}")
+        return 1
 
     print(f"\nWrote {out_path}  ({len(rows)} stocks"
           + (", partial - run cancelled" if cancelled else "")

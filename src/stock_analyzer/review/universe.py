@@ -195,18 +195,37 @@ def scrape_intl_index(key: str) -> list[str]:
 
 def read_tickers_file(path: Path) -> list[str]:
     try:
-        text = path.read_text(encoding="utf-8")
+        raw = path.read_bytes()
     except OSError as e:  # missing/unreadable file -> clean message, not a traceback
         raise SystemExit(f"Could not read tickers file '{path}': {e}") from e
+    # utf-8-sig drops the BOM Excel/Notepad put on "CSV UTF-8" files (it would
+    # otherwise glue itself to the first ticker); fall back to cp1252 for files
+    # saved with a legacy Windows code page instead of crashing on the decode.
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("cp1252", errors="replace")
     tickers: list[str] = []
-    for i, line in enumerate(text.splitlines()):
+    col = 0               # index of the ticker column (set by a header row)
+    seen_data = False
+    for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        # support a CSV with a 'ticker' header column or a plain one-per-line list
-        first = line.split(",")[0].strip().strip('"').strip("'")
-        if i == 0 and first.lower() in {"ticker", "tickers", "symbol"}:
-            continue
+        cells = [c.strip().strip('"').strip("'") for c in re.split(r"[,;\t]", line)]
+        # A header row ("ticker", "Symbol,Name", ...) is recognised before the
+        # first data line, even after leading comments/blank lines, and tells us
+        # which column holds the tickers.
+        if not seen_data:
+            lowered = [c.lower() for c in cells]
+            hit = next((i for i, c in enumerate(lowered)
+                        if c in {"ticker", "tickers", "symbol", "symbols", "code"}), None)
+            if hit is not None:
+                col = hit
+                seen_data = True
+                continue
+        seen_data = True
+        first = cells[col] if col < len(cells) else ""
         if first:
             tickers.append(first.upper())
     return tickers

@@ -22,6 +22,27 @@
   GUI rejects tickers starting with `-` and non-ASCII digits in Limit/Workers
   instead of crashing the run.
 
+# Changes — Unreleased: "Live board" window (opt-in)
+
+A second front-end next to the Win98 one, from the redesign concepts. No
+scoring, fetch-result or report changes; the Win98 window is untouched.
+
+- **New: `python stock_review_board.py`** opens a dark, table-first window:
+  pick a list in the sidebar, press Run, watch every ticker fill in live
+  (fetched / retrying / failed and why, with its 1-month return), and finish
+  on a result card that names the failed tickers and has **Copy for AI**
+  (copies the whole report), Open report / folder and Retry failed.
+- Counts are cumulative for the whole run, so a retry round no longer shows
+  "ok 0" and 100% while 28 stocks are already in; between rounds the failures
+  read as "retrying", not "failed".
+- **Finish now** while retries are pending writes the report from what was
+  fetched (same as Cancel, worded for the job).
+- The header tape and the table show the 1-month return of fetched tickers; a
+  missing value is left out, never shown as 0.
+- The window is resizable, fits 1366x768, and has no 7pt text.
+- Internal: `fetch._fetch_batch` passes each ticker's record to a progress sink
+  that sets `wants_rec = True` (the Win98 window's sink is unchanged).
+
 # Changes — Unreleased: GUI layout, contrast and focus fixes
 
 From the UI review (visual design, usability, accessibility). GUI only — no

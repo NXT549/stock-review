@@ -57,19 +57,20 @@ def test_clean_symbol():
 
 
 def test_intl_symbol():
-    idx = sr.INTL_INDEXES
+    # Each index definition carries its exchange's rule (built on _intl_symbol).
+    to = {key: sr.INDEXES[key].to_symbol for key in ("hsi", "ftse100", "dax", "asx200")}
     # Hong Kong: digits-only + zero-pad to 4 + .HK  ("SEHK: 700" -> "0700.HK")
-    assert sr._intl_symbol("SEHK: 700", idx["hsi"]) == "0700.HK"
-    assert sr._intl_symbol("5", idx["hsi"]) == "0005.HK"
+    assert to["hsi"]("SEHK: 700") == "0700.HK"
+    assert to["hsi"]("5") == "0005.HK"
     # UK / Canada: dot -> dash, then suffix
-    assert sr._intl_symbol("BT.A", idx["ftse100"]) == "BT-A.L"
+    assert to["ftse100"]("BT.A") == "BT-A.L"
     # Germany: keep dots (ticker already carries the .DE/.PA suffix)
-    assert sr._intl_symbol("ADS.DE", idx["dax"]) == "ADS.DE"
+    assert to["dax"]("ADS.DE") == "ADS.DE"
     # Australia default: strip stray trailing text, append suffix
-    assert sr._intl_symbol("BHP", idx["asx200"]) == "BHP.AX"
-    assert sr._intl_symbol("CBA (Commonwealth)", idx["asx200"]) == "CBA.AX"
+    assert to["asx200"]("BHP") == "BHP.AX"
+    assert to["asx200"]("CBA (Commonwealth)") == "CBA.AX"
     # empty stays empty
-    assert sr._intl_symbol("", idx["asx200"]) == ""
+    assert to["asx200"]("") == ""
     print("OK _intl_symbol: digits-only/zfill, dot->dash, keep-dots, suffix")
 
 
@@ -411,29 +412,29 @@ def test_fx_rates_parallel_aggregation():
 
 def test_universe_disk_cache_short_circuits():
     """A day-cached constituent list is returned without re-scraping; --no-cache
-    (CACHE_DIR=None) bypasses the cache and would hit the network."""
+    (cache_dir=None) bypasses the cache and would hit the network."""
     import tempfile
+    from contextlib import contextmanager
 
-    def boom(*a, **k):
+    def boom(url):
         raise RuntimeError("network hit!")
 
+    @contextmanager
+    def offline():
+        yield boom
+
+    uni = sr.universe
     with tempfile.TemporaryDirectory() as d:
-        old_dir, sr.universe.CACHE_DIR = sr.universe.CACHE_DIR, Path(d)
-        old_soup, sr.universe._get_soup = sr.universe._get_soup, boom
+        uni.DayCache(Path(d)).save("sp500", [uni.IndexRecord("AAA"), uni.IndexRecord("BBB")])
+        cached = uni.UniverseLoader(Path(d), open_fetcher=offline)
+        got = uni.universe_tickers("sp500", loader=cached)           # cache hit
+        assert got == ["AAA", "BBB"], got
+        uncached = uni.UniverseLoader(None, open_fetcher=offline)    # --no-cache
         try:
-            sr.universe._universe_cache_save(
-                "fetch_index_constituents_sp500", ["AAA", "BBB"])
-            got = sr.universe.fetch_index_constituents("sp500")  # cache hit
-            assert got == ["AAA", "BBB"], got
-            sr.universe.CACHE_DIR = None                         # --no-cache
-            try:
-                sr.universe.fetch_index_constituents("sp500")
-                assert False, "expected a network call with caching disabled"
-            except RuntimeError as e:
-                assert "network hit" in str(e)
-        finally:
-            sr.universe.CACHE_DIR = old_dir
-            sr.universe._get_soup = old_soup
+            uni.universe_tickers("sp500", loader=uncached)
+            assert False, "expected a network call with caching disabled"
+        except RuntimeError as e:
+            assert "network hit" in str(e)
     print("OK 5.2 universe cache: disk hit skips scrape; --no-cache bypasses")
 
 

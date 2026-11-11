@@ -41,7 +41,7 @@ def _scrape(fn, what: str) -> list[str]:
         return fn()
     except (SystemExit, KeyboardInterrupt):
         raise
-    except Exception as e:  # noqa: BLE001 - requests/pandas/lxml raise many types
+    except Exception as e:  # noqa: BLE001 - network failures come in many types
         raise SystemExit(f"Could not fetch the '{what}' constituent list "
                          f"({type(e).__name__}: {e}). Check your connection and retry, "
                          "or pass tickers directly / use --file.") from e
@@ -181,7 +181,7 @@ def main(argv=None, *, progress=None, cancel_event=None) -> int:
 
     # The constituent scrapes (inside resolve_tickers) share the ticker cache's
     # directory and --no-cache flag, so a rerun skips the Wikipedia/ASX round-trips.
-    universe.CACHE_DIR = None if args.no_cache else Path(args.cache_dir)
+    universe.configure(cache_dir=None if args.no_cache else Path(args.cache_dir))
 
     tickers = resolve_tickers(args)
     if not tickers:

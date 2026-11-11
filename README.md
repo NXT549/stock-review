@@ -66,7 +66,7 @@ key, no network call, no AI-provider SDK dependency. See
 
 `stock_review.py` is the standalone tool: it fetches a watchlist from yfinance and
 writes **one Markdown file** to hand to an AI. It needs only `yfinance pandas`
-(plus `requests beautifulsoup4 lxml` for the `--source`/`--sector` group lists).
+(plus `requests` for the `--source`/`--sector` group lists).
 
 > **Which Python:** the bundled `.venv` was built on another machine and is broken;
 > use the working `.venv313` (Python 3.13). All commands below call its interpreter

@@ -59,7 +59,8 @@ src/stock_analyzer/
   util.py                   df_to_markdown/csv, fmt helpers, config_hash()
   review/                   the watchlist tool ("Stock Review")
     cli.py                  argparse + main(argv, progress=, cancel_event=); resolve_tickers()
-    universe.py             --source lists, Wikipedia/ASX scrapers, --sector GICS groups, SOURCES dict
+    universe.py             ★ INDEXES / UNIVERSES / SECTORS tables (SOURCES + REGION_RECORDS are generated),
+                            UniverseLoader (day cache → concurrent scrape → stale fallback), --sector logic
     fetch.py                fetch_one() per ticker, _fetch_batch() concurrency + retry rounds, FX → USD
     format.py               ★ COLUMNS (ColSpec list) = single source of truth for lean & rich grids
     report.py               build_markdown(), stocks_csv(), stocks_json(); AI instructions + legends
@@ -121,7 +122,7 @@ There is no linter/formatter config in the repo; match surrounding style
 | Change scoring weights | `config/config.yaml` → `scoring.*` (then backtest) — not code |
 | Change pipeline report | `reporting.py`; `tests/test_reporting.py` |
 | Add a column to the review grid | `review/fetch.py` (populate key) → `review/format.py` `COLUMNS` → legends in `review/report.py` → regenerate `tests/golden/*.csv` |
-| Add a `--source` / region | `review/universe.py` (`SOURCES`, `REGION_RECORDS`, scrapers) + `gui.py` `_SOURCE_HINTS` / quick picks |
+| Add a `--source` / region | `review/universe.py`: a row in `INDEXES` (the page) and one in `UNIVERSES` (the name, aliases, `sector_region=True` only if the table has GICS columns); `SOURCES` / `REGION_RECORDS` follow. Then `gui.py` `_SOURCE_HINTS` / quick picks and the name lists in `tests/test_universe.py` |
 | Add a `--sector` | `review/universe.py` `SECTORS` + `SECTOR_ALIASES` |
 | New CLI flag | `review/cli.py` + `gui.py` `build_argv()` (if exposed) + `tests/test_cli.py` / `test_gui.py` |
 | GUI look | `review/gui_theme.py` tokens/factories — see DESIGN.md "GUI design system" |
@@ -141,6 +142,12 @@ There is no linter/formatter config in the repo; match surrounding style
 - Market caps are USD-normalised (`usd_market_cap`); prices/targets stay in
   listing currency (`GBp` = pence).
 - `review` and the pipeline each have their own `universe.py` — different modules.
+- `review/universe.py` reads Wikipedia with its own stdlib table reader (no bs4 /
+  pandas / lxml). User-facing failures raise `UniverseError`, a `SystemExit`
+  subclass the CLI and GUIs already handle; network errors propagate so
+  `cli._scrape` can word them. `cli.main` calls `universe.configure(cache_dir=…)`
+  once per run. In tests, pass a `UniverseLoader` with a fake `open_fetcher`
+  (see `tests/test_universe.py`) instead of patching module globals.
 - Pipeline `save_run` replaces an earlier same-day run for the same universe;
   backtest also dedupes at read time. SQLite FKs are enabled via PRAGMA.
 - "Unknown" sector is never a peer group — always ranks universe-wide.

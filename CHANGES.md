@@ -1,3 +1,41 @@
+# Unreleased: faster, sturdier index lists
+
+`review/universe.py` (the `--source` / `--sector` lists) was rewritten. Every
+source, region and sector returns exactly the same tickers as before (checked
+against the live pages in both of Wikipedia's markups); what changed is how they
+are fetched.
+
+- **Faster.** A multi-page list downloads its pages concurrently over one
+  connection instead of one after another, and the pages are read with a small
+  streaming table reader that stops at the constituents table. Fetching `world`
+  (9 pages) dropped from about 5.4 s to 0.7 s on a fast connection, `global`
+  from 2.0 s to 0.6 s.
+- **One download per page per day.** The plain ticker list and the sector data
+  for an index used to be scraped and cached separately; they now share one
+  cache entry, so `--source sp500` followed by `--sector tech` hits Wikipedia
+  once.
+- **Keeps working when a page is unreachable.** Throttling (429), server errors
+  and timeouts are tried up to three times. If a page still cannot be read, or
+  its layout changed, the newest copy from the last 7 days is used and a warning
+  says so and gives its date. With no such copy the run stops with the same clean
+  message as before.
+- **No short lists.** A page that comes back truncated or with the wrong table
+  is rejected instead of being cached as a tiny "index".
+- **Clearer failures.** A list with several pages names every page that failed
+  and keeps the ones that loaded, so the rerun only repeats the failures. If a
+  page loses its sector or market-cap column, plain lists still work and sector
+  / small-cap requests say what is missing.
+- **Tickers file.** UTF-16 files (Notepad "Unicode") are read correctly; a
+  spreadsheet or other binary file, or a file over 5 MB, is refused with a clear
+  message instead of producing garbage tickers.
+- **Housekeeping.** Cache files are written atomically, constituent-cache
+  folders older than a week are removed, and `--no-cache` in a long-running
+  window no longer keeps yesterday's sector data in memory.
+- **Fewer dependencies.** The group lists need only `requests`; the
+  `beautifulsoup4` / `pandas` / `lxml` path is gone from this module.
+- Developers: `universe.CACHE_DIR` is replaced by `universe.configure(cache_dir=…)`
+  and the old scraper helpers by `UniverseLoader`; see DESIGN.md "Universe lists".
+
 # Unreleased: Live board is the main Windows app
 
 - **`Stock Review.exe` (desktop icon, Start menu, "Launch now") now opens the dark

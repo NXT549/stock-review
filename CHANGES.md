@@ -1,4 +1,4 @@
-# Unreleased: faster, sturdier index lists
+# Changes — 2.4 (2026-11-11): faster, sturdier index lists
 
 `review/universe.py` (the `--source` / `--sector` lists) was rewritten. Every
 source, region and sector returns exactly the same tickers as before (checked
@@ -36,7 +36,7 @@ are fetched.
 - Developers: `universe.CACHE_DIR` is replaced by `universe.configure(cache_dir=…)`
   and the old scraper helpers by `UniverseLoader`; see DESIGN.md "Universe lists".
 
-# Unreleased: Live board is the main Windows app
+# Changes — 2.4 (2026-11-11): Live board is the main Windows app
 
 - **`Stock Review.exe` (desktop icon, Start menu, "Launch now") now opens the dark
   Live board.** The original Win98 window is still there as `Stock Review
@@ -44,7 +44,7 @@ are fetched.
   workflow can also upload a build to an existing release via "Run workflow" +
   `release_tag`.
 
-# Unreleased — scored-pipeline data fixes
+# Changes — 2.4 (2026-11-11): scored-pipeline data fixes
 
 - **Empty yfinance `.info` is no longer cached as good data.** A rate-limited
   (empty) pull used to be cached for the whole TTL and marked `data_ok=True`;
@@ -55,7 +55,7 @@ are fetched.
   NASDAQ and ASX lists were read with pandas defaults, so `NA`/`NAN` (e.g. ASX
   Nanosonics) vanished and numeric codes like `0700` lost their zeros.
 
-# Unreleased: edge-case fixes
+# Changes — 2.4 (2026-11-11): edge-case fixes
 
 - **Tickers file / CLI input.** `--file` now survives a UTF-8 BOM (Excel "CSV
   UTF-8"), non-UTF-8 files, a header that follows comment lines, and a
@@ -68,7 +68,7 @@ are fetched.
   GUI rejects tickers starting with `-` and non-ASCII digits in Limit/Workers
   instead of crashing the run.
 
-# Changes — Unreleased: "Live board" window (opt-in)
+# Changes — 2.4 (2026-11-11): "Live board" window (opt-in)
 
 A second front-end next to the Win98 one, from the redesign concepts. No
 scoring, fetch-result or report changes; the Win98 window is untouched.
@@ -89,7 +89,7 @@ scoring, fetch-result or report changes; the Win98 window is untouched.
 - Internal: `fetch._fetch_batch` passes each ticker's record to a progress sink
   that sets `wants_rec = True` (the Win98 window's sink is unchanged).
 
-# Changes — Unreleased: GUI layout, contrast and focus fixes
+# Changes — 2.4 (2026-11-11): GUI layout, contrast and focus fixes
 
 From the UI review (visual design, usability, accessibility). GUI only — no
 scoring, fetch or report changes.

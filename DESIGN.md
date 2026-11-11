@@ -39,6 +39,7 @@ SCORED PIPELINE (scripts/run_daily.py → pipeline.run_pipeline)
 WATCHLIST REVIEW (stock_review.py / GUI → review.cli.main)
 
   argv ─► cli.resolve_tickers (positional | --file | --sector[+--source] | --source | curated)
+            └─ universe.UniverseLoader (memo → day cache → concurrent scrape → stale cache)
        ─► fetch._fetch_batch (thread pool, per-day cache, retry rounds, cancel_event)
        ─► fetch.fetch_fx_rates + to_usd_market_cap
        ─► universe.verify_loose_industry (sector precision pass)
@@ -115,6 +116,26 @@ raw-value deep dive for top `deep_dive_n`. Guarded by `tests/test_reporting.py`.
 - Failures and sector-precision exclusions are listed with reasons; a cancelled
   run writes a **partial report** with a banner and exits 130.
 - Golden files `tests/golden/{lean,rich}_stocks.csv` pin the exact grid.
+
+### Universe lists (`review/universe.py`)
+- **Definitions are data.** `INDEXES` (one page each), `UNIVERSES` (named
+  `--source`s built from index parts, with aliases) and `SECTORS` are tables;
+  `SOURCES` and `REGION_RECORDS` are generated from them and their key sets are
+  a contract with the CLI and both GUIs (pinned in `tests/test_universe.py`).
+- **One record model.** Every page is parsed once into `IndexRecord`s (symbol +
+  normalised GICS labels + local market cap or `None`). Plain ticker lists and
+  sector groups read the same records, so a page is downloaded at most once a
+  day whichever is asked for.
+- **Loading order:** in-run memo → `<cache>/_universe/<date>/<index>.json` →
+  live scrape (all missing pages concurrently, ≤ 4 at a time, one HTTP session,
+  3 attempts on 429/5xx/timeouts) → the newest copy from the last 7 days, used
+  with a warning and never re-saved as fresh. Day folders older than that are
+  pruned. `--no-cache` disables all of it.
+- **Failure rules.** A table must have its symbol column and a minimum row
+  count or the scrape fails (never a short list). A missing sector or
+  market-cap column still yields tickers, but a `--sector` or small-cap request
+  on it stops with the reason. In a multi-page universe every failed page is
+  named and the pages that loaded are cached before the error is raised.
 
 ---
 

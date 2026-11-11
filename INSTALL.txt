@@ -1,4 +1,4 @@
-STOCK REVIEW 2.3 - INSTALL GUIDE
+STOCK REVIEW 2.4 - INSTALL GUIDE
 =================================
 (the "just tell me exactly what to click" edition)
 
@@ -12,7 +12,7 @@ STEP 1 - GET THE FILES OUT OF THE ZIP
 If you're reading this from inside the zip file, stop and unpack it
 first (programs won't install properly from inside a zip):
 
-  1. Find "Stock Review 2.3.zip" (probably in your Downloads folder).
+  1. Find "Stock Review 2.4.zip" (probably in your Downloads folder).
   2. RIGHT-click it.
   3. Click "Extract All...".
   4. Click "Extract".

@@ -94,6 +94,10 @@ def main() -> int:
 
     gate, mode, app_box = threading.Event(), {"bad": False}, []
     gb._gui._run_review = _fake_worker(gate, mode, app_box)
+    # Animations default to off when Windows' "Animation effects" is off, which
+    # is how a headless CI runner reports itself. The test must not depend on
+    # the machine's own setting, so it pins "no preference stored -> motion on".
+    gb._theme.detect_reduced_motion = lambda: False
 
     root = tk.Tk()
     errors: list[str] = []
@@ -299,9 +303,11 @@ def main() -> int:
     gate.set()
     pump(8, until=lambda: not app.running)
     check(app.fete is not None, "another clean run celebrates again")
-    root.event_generate("<Key>", keysym="a")
+    # a click, not a key: key events only reach a window that has the focus,
+    # which a headless runner does not always give it
+    root.event_generate("<Button-1>", x=5, y=5)
     pump(0.1)
-    check(app.fete is None, "any key skips the lift-off")
+    check(app.fete is None, "a click skips the lift-off")
     check(app.fx_error is None, f"no animation was dropped: {app.fx_error}")
 
     app.set_mode("custom")                       # leave the finished run

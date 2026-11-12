@@ -1,4 +1,4 @@
-# Changes — 2.4 (2026-11-12): the main window and the website, redesigned
+# Changes — 2.5 (2026-11-12): the main window and the website, redesigned
 
 A redesign of the Live board (what `Stock Review.exe` opens) and of the website.
 No scoring, fetch-result or report changes; the Classic (Win98) window and the
@@ -39,7 +39,10 @@ Terminal edition are untouched.
   the Classic one).
 - Developers: the view is a `BoardApp` class; tokens live in
   `review/gui_board_theme.py`, the table and mosaic in
-  `review/gui_board_table.py`. See DESIGN.md "Live board".
+  `review/gui_board_table.py`. See DESIGN.md "Live board". The Windows build
+  now opens the real window and drives it through an offline session
+  (`tests/test_gui_board_window.py`), and checks that the frozen main exe opens
+  and closes cleanly, before anything can be released.
 
 # Changes — 2.4 (2026-11-11): faster, sturdier index lists
 

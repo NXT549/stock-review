@@ -7,7 +7,8 @@ name: Build Windows app
 #   * push a tag like v2.3   -> build + publish a GitHub Release with both files
 #   * push to any branch that touches the app/packaging -> build only (check +
 #     downloadable workflow artifact, no release)
-#   * "Run workflow" button   -> build only
+#   * "Run workflow" button   -> build only, or with release_tag: build +
+#     publish that release (created if missing), same as pushing the tag
 #
 # Release assets use fixed names so these links always serve the newest build:
 #   https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe
@@ -28,7 +29,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Existing release tag to upload the build to (e.g. v2.3). Replaces assets with the same name. Leave empty to build only."
+        description: "Release tag to publish this build as (e.g. v2.5). Created if it does not exist; otherwise its assets are replaced. Leave empty to build only."
         required: false
         default: ""
 
@@ -123,31 +124,28 @@ jobs:
           name: stock-review-windows
           path: out/*
 
+      # One publish step for both routes: a pushed tag (v*), or "Run workflow"
+      # with release_tag. softprops creates the release (and the tag, on the
+      # commit this run built) when it does not exist yet, and otherwise
+      # replaces the assets with the same names.
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
           files: |
             out/Stock-Review-Setup.exe
             out/Stock-Review-Portable.zip
           body: |
             ## Download
 
-            **[⬇ Stock-Review-Setup.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Stock-Review-Setup.exe)**: double-click it and follow the prompts.
+            **[⬇ Stock-Review-Setup.exe](https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag || github.ref_name }}/Stock-Review-Setup.exe)**: double-click it and follow the prompts.
             No admin password and no Python needed.
 
             If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**. It's only shown because the app is new.
 
             Prefer not to install? Download **Stock-Review-Portable.zip**, extract it, and run `Stock Review.exe`.
 
-            See [CHANGES.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/CHANGES.md) for what's new.
+            See [CHANGES.md](https://github.com/${{ github.repository }}/blob/${{ inputs.release_tag || github.ref_name }}/CHANGES.md) for what's new.
             Not financial advice.
-
-      - name: Upload build to an existing release
-        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.release_tag }}
-          files: |
-            out/Stock-Review-Setup.exe
-            out/Stock-Review-Portable.zip

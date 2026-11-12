@@ -41,7 +41,7 @@ import uuid
 from datetime import date
 from pathlib import Path
 
-APP_VERSION = "2.4"
+APP_VERSION = "2.5"
 APP_AUTHOR = "NXT"
 MIN_W, MIN_H = 760, 600   # smallest window the full layout fits into (see run())
 

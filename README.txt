@@ -1,4 +1,4 @@
-STOCK REVIEW 2.4 - WHAT IS THIS THING?
+STOCK REVIEW 2.5 - WHAT IS THIS THING?
 =======================================
 by NXT
 
@@ -32,9 +32,15 @@ chat (whichever one you like) and ask something like
 "which of these look interesting and why?" - the AI does the reading,
 you do the deciding.
 
-While it works, you get a little MS-DOS window full of ASCII-art
-scenes - a rocket, a whale, a bank vault, a container ship...
-There are 13. Double-click the DOS title bar to change channels.
+While it works you watch it happen: every ticker fills into a live
+table, and a mosaic of small squares (one per ticker, coloured by its
+1-month return) builds up as the run goes. Dark and light themes.
+
+Prefer the 90s? "Stock Review (Classic)" is still in the Start menu:
+the original Windows 98 style window with its MS-DOS panel of
+ASCII-art scenes - a rocket, a whale, a bank vault, a container
+ship... There are 13. Double-click the DOS title bar to change
+channels.
 
 It's free, it runs entirely on your own computer, and nothing is sent
 anywhere except the requests to Yahoo for prices.
@@ -64,9 +70,10 @@ WHAT IT ACTUALLY DOES, STEP BY STEP
                                suffixes work: BHP.AX, 7203.T, RIO.L
      * From a file           - a .txt (one ticker per line) or a .csv
                                with a "ticker" column
-   The grey line under the form translates whatever you picked into
-   plain English, and the "Quick picks" menu fills the whole form in
-   one click.
+   The line under the heading translates whatever you picked into
+   plain English, and the line below that says where the report will
+   be saved. (In the Classic window, the "Quick picks" menu fills the
+   whole form in one click.)
 
 2. It fetches every ticker from Yahoo Finance (via the yfinance
    library), several in parallel. For each company it collects:
@@ -115,10 +122,13 @@ Yahoo rate-limits big runs. The app expects that:
   * Cancel (Esc) is safe: everything fetched so far is still written
     out as a clearly-marked partial report.
 
-THE TWO PROGRAMS
------------------
+THE THREE PROGRAMS
+-------------------
   * Stock Review            - the window. Pick, run, read. This is
                               the one you want 99% of the time.
+  * Stock Review (Classic)  - the original Windows 98 style window
+                              with the ASCII-art channels. Same
+                              engine, same reports.
   * Stock Review (Terminal) - the exact same engine in a console with
                               command-line flags (--source, --sector,
                               --limit, --workers, --format, --out,
@@ -128,12 +138,21 @@ THE TWO PROGRAMS
 
 LITTLE LUXURIES
 ----------------
-Hover tooltips on every control · Quick picks menu · a live preview
-of exactly where the next report lands · File > Recent reports ·
-partial-report-safe Cancel · a run summary when it finishes ("198 ok,
-2 failed, 3:42") · 13 ASCII channels (double-click the DOS bar to
-surf) · Crystal Ball fortunes (Ctrl+8) · a lifetime odometer in the
-About box · Tip of the Day · period-correct completion sounds.
+In the main window: a live table you can sort (click a column
+heading), filter (All / Fetched / Retrying / Failed) and search
+(Ctrl+F) · the mosaic: hover a square to see its ticker, click it to
+jump to that row · "Copy for AI" puts the whole report on your
+clipboard · "Finish now" writes the report early when only retries
+are left · failed tickers are named, never hidden · a preview of
+exactly where the next report lands · recent reports in the sidebar ·
+dark and light themes (Options, or the button at the top right) ·
+keyboard shortcuts listed along the bottom edge.
+
+In the Classic window: hover tooltips on every control · Quick picks
+menu · File > Recent reports · 13 ASCII channels (double-click the
+DOS bar to surf) · Crystal Ball fortunes (Ctrl+8) · a lifetime
+odometer in the About box · Tip of the Day · period-correct
+completion sounds.
 
 FILES AND PRIVACY
 ------------------

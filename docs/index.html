@@ -7,252 +7,437 @@
 <meta property="og:title" content="Stock Review: free stock report app for Windows">
 <meta property="og:url" content="https://nxt549.github.io/stock-review/">
 <meta name="description" content="Stock Review: a free Windows app that pulls the latest Yahoo Finance numbers for a list of stocks and writes them into one tidy report you can hand to any AI. Not financial advice.">
+<meta name="color-scheme" content="dark light">
 <style>
+  /* Tokens mirror the app (src/stock_analyzer/review/gui_board_theme.py). */
   :root {
-    --face: #c0c0c0; --hilight: #ffffff; --light: #dfdfdf; --shadow: #808080; --dark: #000000;
-    --navy: #000080; --title-blue: #1084d0; --field: #ffffff; --ink: #000000; --gray: #4d4d4d;
-    --crt-bg: #000000; --crt-fg: #d6dde6; --green: #098828; --red: #c62828; --blue: #1668c8;
-    --teal: #108282; --purple: #7a1fa2; --title-green: #075c22; --tip: #ffffe1;
-    --desk: #008080; --phosphor: #33ff66;
+    --bg: #0e1114; --surface: #151a1f; --raised: #1b2128; --hover: #202730; --field: #0f1317;
+    --line: #262d36; --line-strong: #3a4552; --ink: #e6eaef; --muted: #9ca7b4; --faint: #56616e;
+    --accent: #35b8c6; --accent-hover: #5fcbd6; --accent-ink: #041c20; --accent-text: #5fcbd6;
+    --sel: #143338; --sel-ink: #b5ecf2; --ok: #6cc777; --warn: #e2ad52; --bad: #f2858e;
+    --ok-bg: #14261a; --warn-bg: #2a2313; --bad-bg: #2e191c; --track: #2a323c;
+    --glow: rgba(53, 184, 198, .16); --shadow: 0 30px 80px rgba(0, 0, 0, .55);
+    --ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Mono", Consolas, ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --desk: #0b3b3b; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f1f3f1; --surface: #ffffff; --raised: #f6f8f6; --hover: #edf1ee; --field: #ffffff;
+      --line: #dde2de; --line-strong: #b4bcb7; --ink: #161b1e; --muted: #566067; --faint: #a5adb1;
+      --accent: #0b7480; --accent-hover: #095f69; --accent-ink: #ffffff; --accent-text: #0a6772;
+      --sel: #dcf0f2; --sel-ink: #07505a; --ok: #1c7a3e; --warn: #855600; --bad: #b3261e;
+      --ok-bg: #e6f4ea; --warn-bg: #fbf1d8; --bad-bg: #fbe9e7; --track: #dfe4e0;
+      --glow: rgba(11, 116, 128, .10); --shadow: 0 30px 70px rgba(22, 27, 30, .16);
+    }
   }
-  :root[data-theme="dark"] { --desk: #0b3b3b; }
+  :root[data-theme="light"] {
+    --bg: #f1f3f1; --surface: #ffffff; --raised: #f6f8f6; --hover: #edf1ee; --field: #ffffff;
+    --line: #dde2de; --line-strong: #b4bcb7; --ink: #161b1e; --muted: #566067; --faint: #a5adb1;
+    --accent: #0b7480; --accent-hover: #095f69; --accent-ink: #ffffff; --accent-text: #0a6772;
+    --sel: #dcf0f2; --sel-ink: #07505a; --ok: #1c7a3e; --warn: #855600; --bad: #b3261e;
+    --ok-bg: #e6f4ea; --warn-bg: #fbf1d8; --bad-bg: #fbe9e7; --track: #dfe4e0;
+    --glow: rgba(11, 116, 128, .10); --shadow: 0 30px 70px rgba(22, 27, 30, .16);
+  }
 
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--desk); color: var(--ink);
-    font: 14px/1.5 "MS Sans Serif", Tahoma, "Segoe UI", system-ui, sans-serif;
-  }
-  a { color: var(--navy); }
-  .wrap { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--ui); }
+  a { color: var(--accent-text); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  code, pre, .mono { font-family: var(--mono); }
+  code { font-size: .92em; background: var(--raised); border: 1px solid var(--line); padding: 1px 5px; }
+  h1, h2, h3, p { margin: 0; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  .muted { color: var(--muted); }
 
-  /* Win98 window chrome */
-  .win {
-    background: var(--face); margin: 0 0 20px;
-    border: 2px solid; border-color: var(--hilight) var(--dark) var(--dark) var(--hilight);
-    box-shadow: inset -1px -1px 0 var(--shadow), inset 1px 1px 0 var(--light);
-    padding: 3px;
-  }
-  .titlebar {
-    background: linear-gradient(90deg, var(--navy), var(--title-blue));
-    color: #fff; font-weight: bold; padding: 3px 6px;
-    display: flex; justify-content: space-between; align-items: center; gap: 8px;
-  }
-  .titlebar .btns { display: flex; gap: 2px; }
-  .titlebar .btns span {
-    width: 16px; height: 14px; background: var(--face); color: var(--ink);
-    font-size: 10px; line-height: 12px; text-align: center;
-    border: 1px solid; border-color: var(--hilight) var(--dark) var(--dark) var(--hilight);
-  }
-  .body { padding: 14px 16px; }
-  h1, h2, h3 { margin: 0 0 8px; line-height: 1.25; }
-  h1 { font-size: 28px; }
-  h2 { font-size: 18px; color: var(--navy); }
-  h3 { font-size: 15px; }
-  p { margin: 0 0 10px; }
+  /* ---- top bar ---- */
+  .top { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .top .wrap { display: flex; align-items: center; gap: 22px; height: 56px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ink); text-decoration: none; }
+  .bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 18px; }
+  .bars i { width: 4px; background: var(--accent); }
+  .bars i:nth-child(1) { height: 45%; } .bars i:nth-child(2) { height: 70%; } .bars i:nth-child(3) { height: 100%; }
+  .top nav { display: flex; gap: 20px; margin-left: auto; }
+  .top nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  .top nav a:hover { color: var(--ink); }
+  .ghost { font: inherit; font-size: 14px; color: var(--muted); background: none; border: 1px solid var(--line-strong);
+           padding: 5px 12px; cursor: pointer; }
+  .ghost:hover { color: var(--ink); background: var(--hover); }
 
-  .group {
-    border: 2px groove var(--hilight); padding: 14px 12px 10px; margin: 14px 0 6px; position: relative;
-  }
-  .group > .legend {
-    position: absolute; top: -10px; left: 10px; background: var(--face);
-    padding: 0 4px; font-weight: bold;
-  }
-  .g-navy > .legend { color: var(--navy); }
-  .g-green > .legend { color: var(--title-green); }
-  .g-purple > .legend { color: var(--purple); }
+  /* ---- buttons ---- */
+  .btn { display: inline-block; font-weight: 700; text-decoration: none; padding: 12px 22px; border: 1px solid var(--line-strong);
+         color: var(--ink); background: transparent; }
+  .btn:hover { background: var(--hover); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 
-  .btn {
-    display: inline-block; text-decoration: none; font-weight: bold; color: #fff;
-    padding: 6px 14px; margin: 4px 6px 4px 0;
-    border: 2px solid; border-color: rgba(255,255,255,.7) rgba(0,0,0,.8) rgba(0,0,0,.8) rgba(255,255,255,.7);
-  }
-  .btn:hover { filter: brightness(1.12); }
-  .btn:active { border-color: rgba(0,0,0,.8) rgba(255,255,255,.7) rgba(255,255,255,.7) rgba(0,0,0,.8); }
-  .btn:focus-visible { outline: 1px dotted var(--ink); outline-offset: 2px; }
-  .b-green { background: var(--green); }
-  .b-blue { background: var(--blue); }
-  .b-teal { background: var(--teal); }
-  .b-plain { background: var(--face); color: var(--ink); }
+  /* ---- hero ---- */
+  .hero { padding: 72px 0 40px; background:
+          radial-gradient(900px 420px at 50% -80px, var(--glow), transparent 70%); }
+  .eyebrow { font: 600 13px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-text); }
+  h1 { font-size: clamp(34px, 5.6vw, 60px); line-height: 1.05; letter-spacing: -.025em; margin-top: 18px; max-width: 16ch; }
+  .lede { font-size: clamp(17px, 2vw, 20px); color: var(--muted); max-width: 60ch; margin-top: 20px; }
+  .lede b { color: var(--ink); font-weight: 600; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .fine { font-size: 14px; color: var(--muted); margin-top: 14px; }
 
-  .crt {
-    background: var(--crt-bg); color: var(--phosphor);
-    font: 12px/1.25 Consolas, "Courier New", monospace; padding: 12px;
-    border: 2px solid; border-color: var(--shadow) var(--hilight) var(--hilight) var(--shadow);
-    overflow-x: auto; white-space: pre; margin: 0;
-  }
-  .crt .dim { color: var(--crt-fg); opacity: .75; }
-  .crt .r { color: #ff5555; }
-  .crt .y { color: #ffd75f; }
+  /* ---- the app illustration ---- */
+  .shot { margin-top: 54px; border: 1px solid var(--line-strong); background: var(--bg); box-shadow: var(--shadow);
+          font-size: 13px; line-height: 1.35; overflow: hidden; }
+  .shot .chrome { display: flex; align-items: center; gap: 14px; background: var(--surface); border-bottom: 1px solid var(--line);
+                  padding: 10px 16px; }
+  .shot .chrome b { font-size: 14px; }
+  .tape { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; font: 12px var(--mono); color: var(--muted); }
+  .tape span { margin-right: 18px; }
+  .up { color: var(--ok); } .down { color: var(--bad); }
+  .shot .links { color: var(--muted); display: flex; gap: 16px; }
+  .shot .grid { display: grid; grid-template-columns: 200px 1fr; }
+  .side { background: var(--surface); border-right: 1px solid var(--line); padding: 14px 8px; }
+  .side h4 { margin: 2px 10px 8px; font-size: 11px; letter-spacing: .06em; color: var(--muted); }
+  .nav { padding: 6px 10px; border-left: 3px solid transparent; }
+  .nav small { display: block; color: var(--muted); font-size: 12px; }
+  .nav.on { background: var(--sel); border-left-color: var(--accent); color: var(--sel-ink); font-weight: 700; }
+  .nav.on small { color: var(--sel-ink); font-weight: 400; }
+  .pane { padding: 18px 22px 0; min-width: 0; }
+  .cmd { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  .cmd h3 { font-size: 22px; line-height: 1.2; }
+  .cmd p { color: var(--muted); }
+  .cmd .cancel { border: 1px solid var(--bad); color: var(--bad); font-weight: 700; padding: 9px 22px; white-space: nowrap; }
+  .band { display: flex; gap: 22px; margin-top: 14px; background: var(--raised); border: 1px solid var(--line);
+          border-left: 4px solid var(--accent); padding: 12px 16px; }
+  .band .txt { flex: 1; min-width: 0; }
+  .band .head { display: flex; align-items: baseline; gap: 10px; }
+  .band .head b { font-size: 16px; }
+  .band .head .clock { margin-left: auto; font: 700 13px var(--mono); }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); align-self: center; }
+  .track { position: relative; height: 6px; margin-top: 26px; background: var(--track); }
+  .track .ok { position: absolute; inset: 0 auto 0 0; width: 64%; background: var(--accent); }
+  .track .fail { position: absolute; top: 0; bottom: 0; left: 64%; width: 1.5%; background: var(--warn); }
+  .track .rocket { position: absolute; left: 65.5%; bottom: 7px; transform: translateX(-100%); font: 12px var(--mono);
+                   color: var(--accent-text); }
+  .mosaic { width: 268px; flex: none; }
+  .mosaic .cells { display: grid; grid-template-columns: repeat(30, 7px); gap: 2px; }
+  .mosaic i { width: 7px; height: 7px; background: var(--track); }
+  .mosaic .key { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .g1 { background: color-mix(in srgb, var(--ok) 35%, var(--raised)) !important; }
+  .g2 { background: color-mix(in srgb, var(--ok) 65%, var(--raised)) !important; }
+  .g3 { background: var(--ok) !important; }
+  .r1 { background: color-mix(in srgb, var(--bad) 35%, var(--raised)) !important; }
+  .r2 { background: color-mix(in srgb, var(--bad) 65%, var(--raised)) !important; }
+  .r3 { background: var(--bad) !important; }
+  .y  { background: var(--warn) !important; }
+  .f  { background: var(--raised) !important; outline: 1px solid var(--bad); outline-offset: -1px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 8px; }
+  .chip { border: 1px solid var(--line-strong); background: var(--surface); padding: 4px 12px; white-space: nowrap; }
+  .chip b { font-family: var(--mono); margin-left: 6px; }
+  .chip.on { background: var(--sel); border-color: var(--accent); color: var(--sel-ink); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot.ok { background: var(--ok); } .dot.retry { box-shadow: inset 0 0 0 2px var(--warn); }
+  .x { color: var(--bad); font-weight: 700; margin-right: 6px; }
+  table.board { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-bottom: 0; }
+  .board th { text-align: left; font-size: 12px; color: var(--muted); background: var(--raised); padding: 8px 12px;
+              border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .board td { padding: 7px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .board .num { text-align: right; font-family: var(--mono); }
+  .board .tk { font-family: var(--mono); }
+  .board .sec, .board .st { color: var(--muted); }
+  .board small { color: var(--muted); font-family: var(--mono); margin-left: 4px; }
+  .board tr.retry td { background: var(--warn-bg); } .board tr.retry .st { color: var(--warn); }
+  .board tr.fail td { background: var(--bad-bg); } .board tr.fail .st { color: var(--bad); }
+  .caption { text-align: center; font-size: 13px; color: var(--muted); margin-top: 14px; }
 
-  .field {
-    background: var(--field); padding: 10px 12px;
-    border: 2px solid; border-color: var(--shadow) var(--hilight) var(--hilight) var(--shadow);
-    font: 12.5px/1.45 Consolas, "Courier New", monospace; overflow-x: auto; white-space: pre;
+  /* ---- sections ---- */
+  section { padding: 76px 0 0; }
+  .kicker { font: 600 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-text); }
+  h2 { font-size: clamp(26px, 3.4vw, 38px); line-height: 1.15; letter-spacing: -.02em; margin-top: 12px; max-width: 22ch; }
+  .sub { color: var(--muted); max-width: 62ch; margin-top: 12px; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
+  .card { background: var(--surface); border: 1px solid var(--line); padding: 22px; }
+  .card .n { font: 700 13px var(--mono); color: var(--accent-text); }
+  .card h3 { font-size: 19px; margin: 8px 0 10px; }
+  .card ul { margin: 0; padding-left: 18px; color: var(--muted); }
+  .card li { margin: 6px 0; }
+  .card li b { color: var(--ink); font-weight: 600; }
+  .file { margin-top: 32px; background: var(--surface); border: 1px solid var(--line); }
+  .file .bar { display: flex; justify-content: space-between; gap: 12px; padding: 9px 16px; border-bottom: 1px solid var(--line);
+               font: 12px var(--mono); color: var(--muted); }
+  pre { margin: 0; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.55; }
+  .rules { margin-top: 32px; border: 1px solid var(--line); background: var(--surface); }
+  .rule { display: grid; grid-template-columns: 300px 1fr; gap: 20px; padding: 16px 22px; border-bottom: 1px solid var(--line); }
+  .rule:last-child { border-bottom: 0; }
+  .rule b { font-weight: 600; }
+  .rule span { color: var(--muted); }
+  .install { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; margin-top: 32px; align-items: start; }
+  ol.do { margin: 0; padding: 0; list-style: none; counter-reset: s; }
+  ol.do li { counter-increment: s; position: relative; padding: 0 0 18px 46px; }
+  ol.do li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 30px; height: 30px; display: grid;
+                     place-items: center; font: 700 13px var(--mono); color: var(--accent-text); border: 1px solid var(--line-strong); }
+  .tip { border-left: 4px solid var(--warn); background: var(--warn-bg); padding: 14px 16px; margin-top: 4px; }
+  .editions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
+  .steps > *, .install > *, .editions > * { min-width: 0; }   /* let code blocks scroll, not stretch */
+  .tag { display: inline-block; font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--sel-ink);
+         background: var(--sel); padding: 3px 8px; }
+
+  /* the Classic edition keeps its Windows 98 look */
+  .w98 { background: #c0c0c0; color: #000; border: 2px solid; border-color: #fff #000 #000 #fff; padding: 3px; margin-top: 14px;
+         font: 13px/1.4 "MS Sans Serif", Tahoma, "Segoe UI", sans-serif; }
+  .w98 .t { background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font-weight: 700; padding: 3px 6px; }
+  .w98 pre { background: #000; color: #33ff66; font-size: 11px; line-height: 1.2; padding: 10px; margin-top: 3px;
+             border: 2px solid; border-color: #808080 #fff #fff #808080; }
+  .w98 pre .y { background: none !important; color: #ffd75f; }
+
+  footer { margin-top: 84px; border-top: 1px solid var(--line); background: var(--surface); padding: 32px 0 44px; }
+  footer p { max-width: 78ch; color: var(--muted); }
+  footer p b { color: var(--ink); }
+
+  @media (max-width: 900px) {
+    .steps, .editions, .install { grid-template-columns: 1fr; }
+    .rule { grid-template-columns: 1fr; gap: 4px; }
+    .shot .grid { grid-template-columns: 1fr; }
+    .side, .mosaic, .shot .links { display: none; }
+    .top nav { display: none; }
+    .top .wrap { justify-content: space-between; }
   }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
-  @media (max-width: 680px) { .grid2 { grid-template-columns: 1fr; } h1 { font-size: 22px; } }
-  ul { margin: 0 0 10px; padding-left: 20px; }
-  li { margin: 2px 0; }
-  ol li { margin: 4px 0; }
-  .tip {
-    background: var(--tip); border: 1px solid var(--ink); padding: 8px 10px; margin: 10px 0;
+  @media (max-width: 620px) {
+    .hero { padding-top: 44px; }
+    .board .sec, .board .col-price, .cmd .cancel,
+    .board th:nth-child(2), .board td:nth-child(2) { display: none; }
+    .pane { padding: 14px 12px 0; }
+    .board th, .board td { padding: 7px 8px; }
+    .btn { width: 100%; text-align: center; }
   }
-  .muted { color: var(--gray); }
-  table { border-collapse: collapse; width: 100%; background: var(--field); }
-  th, td { text-align: left; padding: 5px 8px; border: 1px solid var(--shadow); vertical-align: top; }
-  th { background: var(--light); }
-  .status {
-    display: flex; gap: 2px; margin-top: 8px; font-size: 12px;
+
+  /* motion: the run fills in once. Off for anyone who asks for less. */
+  @media (prefers-reduced-motion: no-preference) {
+    .track .ok { animation: fill 2.6s cubic-bezier(.2, .7, .2, 1) both; }
+    .track .fail, .track .rocket { animation: appear .4s 2.5s both; }
+    .mosaic i { animation: appear .35s both; animation-delay: calc(var(--i) * 14ms + 300ms); }
+    .pulse { animation: blink 1s steps(2, start) infinite; }
+    @keyframes fill { from { width: 0; } }
+    @keyframes appear { from { opacity: 0; } }
+    @keyframes blink { to { opacity: .25; } }
   }
-  .status span {
-    padding: 2px 6px; border: 1px solid; border-color: var(--shadow) var(--hilight) var(--hilight) var(--shadow);
-  }
-  .status span:first-child { flex: 1; }
-  .scroll-x { overflow-x: auto; }
 </style>
 </head>
 <body>
-<main class="wrap">
 
-  <section class="win" aria-labelledby="hero-title">
-    <div class="titlebar"><span>Stock Review 2.4 · pick · run · read</span><span class="btns" aria-hidden="true"><span>_</span><span>□</span><span>×</span></span></div>
-    <div class="body">
-      <h1 id="hero-title">Stock Review</h1>
-      <p>Pick a list of stocks: the ASX 200, the S&amp;P 500, all of Japan, or your own tickers. Click <b>Run</b>. Stock Review
-        pulls the latest numbers from Yahoo Finance and writes them into <b>one tidy report</b> that you can drop into any AI chat.</p>
-      <p class="muted">Free and Windows-only. Everything runs on your own computer. There's no AI inside the app.</p>
-      <a class="btn b-green" href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe">⬇ Download for Windows</a>
-      <a class="btn b-blue" href="https://github.com/nxt549/stock-review">View source on GitHub</a>
-      <a class="btn b-teal" href="#install">How to install</a>
-      <p class="muted" style="margin-top:6px">Windows 10/11 · free · ~40 MB · <a href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Portable.zip">portable zip</a> (no install) · <a href="https://github.com/nxt549/stock-review/releases">all versions</a></p>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>Stock Review</a>
+    <nav aria-label="Sections">
+      <a href="#what">What it does</a>
+      <a href="#honest">Honesty</a>
+      <a href="#install">Install</a>
+      <a href="#editions">Editions</a>
+      <a href="https://github.com/nxt549/stock-review">GitHub</a>
+    </nav>
+    <button class="ghost" id="theme" type="button" aria-label="Switch between light and dark">Theme</button>
+  </div>
+</header>
 
-      <div class="group g-navy" style="margin-top:18px">
-        <span class="legend">MS-DOS Prompt - STOCK REVIEW</span>
-<pre class="crt" aria-label="Illustration of the app's ASCII loading screen">
-<span class="dim">C:\STOCKS&gt;</span> stock_review --source australia
+<main id="top">
 
-                    *            .        +          .
-          .                 ___                 *
-                 +         /   \      to the moon...
-                          | o o |
-      .                   |  ^  |        .            +
-                         /|_____|\
-                        /_|  |  |_\         *
-                          |__|__|
-                          <span class="y">/ \/ \</span>
-                         <span class="y">/ /\ \ \</span>      .
-                          <span class="r">'.''.'</span>
-
- [████████████████████░░░░░░░░░░]  134/200  67%   ETA 1:12
- tape: BHP.AX ✓  CBA.AX ✓  CSL.AX ✓  <span class="y">» WES.AX</span>  NAB.AX ✓  <span class="r">✗ XYZ.AX</span>
-</pre>
-        <div class="status"><span>Fetching… 131 ok, 3 failed, 1 retry</span><span>0:02:41</span><span>16:30</span></div>
+  <div class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Free · Windows · no AI inside</p>
+      <h1>A whole market's numbers in one file you can hand to an AI.</h1>
+      <p class="lede">Pick a list of stocks: the ASX 200, the S&amp;P 500, all of Japan, or your own tickers. Press <b>Run</b>.
+        Stock Review pulls the latest numbers from Yahoo Finance and writes them into <b>one tidy report</b> that you can
+        drop into any AI chat. Everything runs on your own computer.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe">Download for Windows</a>
+        <a class="btn" href="#install">How to install</a>
+        <a class="btn" href="https://github.com/nxt549/stock-review">View source</a>
       </div>
-    </div>
-  </section>
+      <p class="fine">Version 2.5 · Windows 10/11 · free · about 40 MB ·
+        <a href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Portable.zip">portable zip</a> (no install) ·
+        <a href="https://github.com/nxt549/stock-review/releases">all versions</a></p>
 
-  <section class="win" aria-labelledby="what">
-    <div class="titlebar"><span>What it does</span></div>
-    <div class="body">
-      <h2 id="what">One run gives you one file to hand to an AI</h2>
-      <div class="grid2">
-        <div class="group g-navy"><span class="legend">1. Pick</span>
+      <div class="shot" role="img" aria-label="Illustration of the Stock Review window part-way through a run: a progress bar, a mosaic with one square per ticker, and a table of tickers showing price, one-month return and fetch status.">
+        <div class="chrome" aria-hidden="true">
+          <span class="bars"><i></i><i></i><i></i></span><b>Stock Review</b>
+          <div class="tape"><span>BHP.AX <span class="up">+2.1%</span></span><span>CBA.AX <span class="down">-0.4%</span></span><span>CSL.AX <span class="up">+6.3%</span></span><span>WES.AX <span class="down">-11.8%</span></span><span>NAB.AX <span class="up">+1.2%</span></span><span>RIO.AX <span class="up">+14.0%</span></span></div>
+          <div class="links"><span>Log</span><span>Light mode</span><span>Options</span></div>
+        </div>
+        <div class="grid" aria-hidden="true">
+          <div class="side">
+            <h4>REVIEW</h4>
+            <div class="nav">Starter list<small>89 hand-picked stocks</small></div>
+            <div class="nav on">Region<small>An index or a whole market</small></div>
+            <div class="nav">Sector<small>One industry, across regions</small></div>
+            <div class="nav">My tickers<small>Type your own list</small></div>
+            <div class="nav">From a file<small>A .txt or .csv of tickers</small></div>
+          </div>
+          <div class="pane">
+            <div class="cmd">
+              <div><h3>ASX 200</h3><p>Australia's top 200 · Markdown · every ticker</p></div>
+              <span class="cancel">Cancel</span>
+            </div>
+            <div class="band">
+              <div class="txt">
+                <div class="head"><span class="pulse"></span><b>131 of 200 in, 2 retrying</b><span class="clock">0:41</span><span class="muted">about 20 s left</span></div>
+                <p class="muted">Fetching. Rate limits are normal, the app waits and retries for you.</p>
+                <div class="track"><span class="ok"></span><span class="fail"></span><span class="rocket">~=&gt;</span></div>
+              </div>
+              <div class="mosaic">
+                <div class="cells"><i class="g2" style="--i:0"></i><i class="g1" style="--i:1"></i><i class="r1" style="--i:2"></i><i class="g2" style="--i:3"></i><i class="g1" style="--i:4"></i><i class="r2" style="--i:5"></i><i class="g3" style="--i:6"></i><i class="g1" style="--i:7"></i><i class="r1" style="--i:8"></i><i class="r2" style="--i:9"></i><i class="g2" style="--i:10"></i><i class="g1" style="--i:11"></i><i class="r1" style="--i:12"></i><i style="--i:13"></i><i class="g1" style="--i:14"></i><i class="r1" style="--i:15"></i><i class="g3" style="--i:16"></i><i class="g2" style="--i:17"></i><i class="g1" style="--i:18"></i><i class="r2" style="--i:19"></i><i style="--i:20"></i><i class="g1" style="--i:21"></i><i class="r1" style="--i:22"></i><i class="r2" style="--i:23"></i><i class="g1" style="--i:24"></i><i class="r1" style="--i:25"></i><i class="r3" style="--i:26"></i><i style="--i:27"></i><i class="g1" style="--i:28"></i><i class="r1" style="--i:29"></i><i class="g3" style="--i:30"></i><i class="g2" style="--i:31"></i><i class="g1" style="--i:32"></i><i class="r2" style="--i:33"></i><i style="--i:34"></i><i class="r1" style="--i:35"></i><i class="r2" style="--i:36"></i><i class="g2" style="--i:37"></i><i class="g1" style="--i:38"></i><i class="r1" style="--i:39"></i><i class="r3" style="--i:40"></i><i class="g2" style="--i:41"></i><i class="g1" style="--i:42"></i><i class="r1" style="--i:43"></i><i class="g2" style="--i:44"></i><i class="g1" style="--i:45"></i><i class="r2" style="--i:46"></i><i class="g3" style="--i:47"></i><i class="g1" style="--i:48"></i><i class="r1" style="--i:49"></i><i class="r2" style="--i:50"></i><i class="g2" style="--i:51"></i><i class="g1" style="--i:52"></i><i class="r1" style="--i:53"></i><i style="--i:54"></i><i class="g1" style="--i:55"></i><i class="r1" style="--i:56"></i><i class="f" style="--i:57"></i><i class="g2" style="--i:58"></i><i class="g1" style="--i:59"></i><i class="r2" style="--i:60"></i><i style="--i:61"></i><i class="g1" style="--i:62"></i><i class="r1" style="--i:63"></i><i class="r2" style="--i:64"></i><i class="g1" style="--i:65"></i><i class="r1" style="--i:66"></i><i class="r3" style="--i:67"></i><i style="--i:68"></i><i class="g1" style="--i:69"></i><i class="r1" style="--i:70"></i><i class="g3" style="--i:71"></i><i class="g2" style="--i:72"></i><i class="g1" style="--i:73"></i><i class="r2" style="--i:74"></i><i style="--i:75"></i><i class="r1" style="--i:76"></i><i class="r2" style="--i:77"></i><i class="g2" style="--i:78"></i><i class="g1" style="--i:79"></i><i class="r1" style="--i:80"></i><i class="r3" style="--i:81"></i><i class="g2" style="--i:82"></i><i class="g1" style="--i:83"></i><i class="r1" style="--i:84"></i><i class="g2" style="--i:85"></i><i class="g1" style="--i:86"></i><i class="r2" style="--i:87"></i><i class="g3" style="--i:88"></i><i class="g1" style="--i:89"></i><i class="r1" style="--i:90"></i><i class="r2" style="--i:91"></i><i class="g2" style="--i:92"></i><i class="g1" style="--i:93"></i><i class="r1" style="--i:94"></i><i style="--i:95"></i><i class="g1" style="--i:96"></i><i class="r1" style="--i:97"></i><i class="g3" style="--i:98"></i><i class="g2" style="--i:99"></i><i class="g1" style="--i:100"></i><i class="r2" style="--i:101"></i><i style="--i:102"></i><i class="g1" style="--i:103"></i><i class="r1" style="--i:104"></i><i class="r2" style="--i:105"></i><i class="g1" style="--i:106"></i><i class="r1" style="--i:107"></i><i class="r3" style="--i:108"></i><i style="--i:109"></i><i class="g1" style="--i:110"></i><i class="r1" style="--i:111"></i><i class="g3" style="--i:112"></i><i class="g2" style="--i:113"></i><i class="g1" style="--i:114"></i><i class="r2" style="--i:115"></i><i style="--i:116"></i><i class="r1" style="--i:117"></i><i class="r2" style="--i:118"></i><i class="g2" style="--i:119"></i><i class="g1" style="--i:120"></i><i class="r1" style="--i:121"></i><i class="r3" style="--i:122"></i><i class="g2" style="--i:123"></i><i class="g1" style="--i:124"></i><i class="r1" style="--i:125"></i><i class="g2" style="--i:126"></i><i class="g1" style="--i:127"></i><i class="r2" style="--i:128"></i><i class="g3" style="--i:129"></i><i class="g1" style="--i:130"></i><i class="y" style="--i:131"></i><i class="y" style="--i:132"></i><i style="--i:133"></i><i style="--i:134"></i><i style="--i:135"></i><i style="--i:136"></i><i style="--i:137"></i><i style="--i:138"></i><i style="--i:139"></i><i style="--i:140"></i><i style="--i:141"></i><i style="--i:142"></i><i style="--i:143"></i><i style="--i:144"></i><i style="--i:145"></i><i style="--i:146"></i><i style="--i:147"></i><i style="--i:148"></i><i style="--i:149"></i><i style="--i:150"></i><i style="--i:151"></i><i style="--i:152"></i><i style="--i:153"></i><i style="--i:154"></i><i style="--i:155"></i><i style="--i:156"></i><i style="--i:157"></i><i style="--i:158"></i><i style="--i:159"></i><i style="--i:160"></i><i style="--i:161"></i><i style="--i:162"></i><i style="--i:163"></i><i style="--i:164"></i><i style="--i:165"></i><i style="--i:166"></i><i style="--i:167"></i><i style="--i:168"></i><i style="--i:169"></i><i style="--i:170"></i><i style="--i:171"></i><i style="--i:172"></i><i style="--i:173"></i><i style="--i:174"></i><i style="--i:175"></i><i style="--i:176"></i><i style="--i:177"></i><i style="--i:178"></i><i style="--i:179"></i><i style="--i:180"></i><i style="--i:181"></i><i style="--i:182"></i><i style="--i:183"></i><i style="--i:184"></i><i style="--i:185"></i><i style="--i:186"></i><i style="--i:187"></i><i style="--i:188"></i><i style="--i:189"></i><i style="--i:190"></i><i style="--i:191"></i><i style="--i:192"></i><i style="--i:193"></i><i style="--i:194"></i><i style="--i:195"></i><i style="--i:196"></i><i style="--i:197"></i><i style="--i:198"></i><i style="--i:199"></i></div>
+                <div class="key"><span>One square per ticker</span><span class="mono">-20% to +20%</span></div>
+              </div>
+            </div>
+            <div class="chips">
+              <span class="chip on">All<b>200</b></span>
+              <span class="chip"><span class="dot ok"></span>Fetched<b>131</b></span>
+              <span class="chip"><span class="dot retry"></span>Retrying<b>2</b></span>
+              <span class="chip"><span class="x">×</span>Failed<b>1</b></span>
+            </div>
+            <table class="board">
+              <tr><th>Ticker</th><th>Name</th><th class="sec">Sector</th><th class="num col-price">Price</th><th class="num">1-month</th><th>Status</th></tr>
+              <tr><td class="tk">BHP.AX</td><td>BHP Group</td><td class="sec">Basic Materials</td><td class="num col-price">41.20<small>AUD</small></td><td class="num up">+2.1%</td><td class="st"><span class="dot ok"></span>Fetched</td></tr>
+              <tr><td class="tk">CBA.AX</td><td>Commonwealth Bank</td><td class="sec">Financial Services</td><td class="num col-price">142.85<small>AUD</small></td><td class="num down">-0.4%</td><td class="st"><span class="dot ok"></span>Fetched</td></tr>
+              <tr><td class="tk">CSL.AX</td><td>CSL Limited</td><td class="sec">Healthcare</td><td class="num col-price">268.10<small>AUD</small></td><td class="num up">+6.3%</td><td class="st"><span class="dot ok"></span>Fetched</td></tr>
+              <tr><td class="tk">TLS.AX</td><td>Telstra Group</td><td class="sec">Communication Services</td><td class="num col-price">3.96<small>AUD</small></td><td class="num"></td><td class="st"><span class="dot ok"></span>Fetched</td></tr>
+              <tr class="retry"><td class="tk">ANZ.AX</td><td></td><td class="sec"></td><td class="num col-price"></td><td class="num"></td><td class="st"><span class="dot retry"></span>Retrying, attempt 2 of 3</td></tr>
+              <tr class="fail"><td class="tk">XYZ.AX</td><td></td><td class="sec"></td><td class="num col-price"></td><td class="num"></td><td class="st"><span class="x">×</span>Not found</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <p class="caption">Illustration of the app mid-run. Example rows, not real quotes. An empty cell means Yahoo had no value.</p>
+    </div>
+  </div>
+
+  <section id="what">
+    <div class="wrap">
+      <p class="kicker">What it does</p>
+      <h2>One run gives you one file to hand to an AI.</h2>
+      <p class="sub">There is no account, no telemetry and no AI inside the app. It gathers the numbers; you choose who reads them.</p>
+      <div class="steps">
+        <div class="card"><span class="n">01</span><h3>Pick</h3>
           <ul>
             <li><b>Regions:</b> S&amp;P 500/400/600/1500, ASX 200, every ASX listing, Japan, UK, Germany, Hong Kong, Canada, India, plus small-cap sleeves and global combos</li>
             <li><b>Sectors:</b> energy, mining, telecom, tech, financials, healthcare and more, optionally limited to one region</li>
             <li><b>Your own list:</b> type tickers (<code>AAPL BHP.AX 7203.T</code>) or load a .txt or .csv file</li>
-          </ul>
-        </div>
-        <div class="group g-green"><span class="legend">2. Fetch</span>
+          </ul></div>
+        <div class="card"><span class="n">02</span><h3>Fetch</h3>
           <ul>
             <li>For each company: size (in USD), valuation (P/E, PEG, P/B, P/S), quality (ROE, margin, growth, debt), dividends</li>
             <li>Momentum: 1, 3, 6 and 12-month returns, distance from the 50- and 200-day averages, and from the 52-week high and low</li>
             <li>Analyst rating, price target and upside</li>
-          </ul>
-        </div>
+          </ul></div>
+        <div class="card"><span class="n">03</span><h3>Read</h3>
+          <ul>
+            <li>One date-stamped report. The default Markdown version is a compact table with a column legend and built-in instructions for the AI that will read it</li>
+            <li><b>Copy for AI</b> puts the whole report on your clipboard</li>
+            <li>Or export CSV for Excel, or JSON for scripts</li>
+          </ul></div>
       </div>
-      <div class="group g-purple"><span class="legend">3. Read</span>
-        <p>You get one date-stamped report. The default Markdown version is a compact table with a column legend and built-in
-          instructions for the AI that will read it. You can also export CSV for Excel or JSON for scripts.</p>
-<div class="field">Ticker,Name,Sector,Price,MktCapB,PE,FwdPE,ROE,RevGr,Div,1y,vs200d,Analyst,Upside
+      <div class="file">
+        <div class="bar"><span>stock_review_2026-11-12.md</span><span>example rows, not real quotes</span></div>
+<pre>Ticker,Name,Sector,Price,MktCapB,PE,FwdPE,ROE,RevGr,Div,1y,vs200d,Analyst,Upside
 AAPL,Apple,Tech,227.5,3450,34.6,29.8,157.4,6.1,0.4,18.2,4.9,B,8.3
 BHP.AX,BHP Group,Mat,41.2,141,16.9,12.4,19.8,-2.5,4.9,-6.0,-3.1,H,7.5
-7203.T,Toyota Motor,ConsDisc,2710,236,7.8,8.9,13.1,7.3,3.1,-9.4,-5.2,B,21.0</div>
-        <p class="muted" style="margin-top:6px">Example rows for illustration only, not real quotes. A blank cell means Yahoo didn't have the value. The app never guesses one.</p>
+7203.T,Toyota Motor,ConsDisc,2710,236,7.8,8.9,13.1,7.3,3.1,-9.4,-5.2,B,21.0</pre>
       </div>
+      <p class="fine">A blank cell means Yahoo didn't have the value. The app never guesses one.</p>
     </div>
   </section>
 
-  <section class="win" aria-labelledby="install">
-    <div class="titlebar"><span>Install</span></div>
-    <div class="body">
-      <h2 id="install">Install in about a minute</h2>
-      <ol>
-        <li><a href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe"><b>Download Stock-Review-Setup.exe</b></a>.</li>
-        <li>Open it. If you see a blue <i>"Windows protected your PC"</i> box, click <b>More info</b>, then <b>Run anyway</b>. This only means the app is new to Windows. You'll only see it once.</li>
-        <li>Click <b>Next → Install → Finish</b>. You don't need an admin password or Python.</li>
-        <li>Open <b>Stock Review</b> from your desktop, pick something from <b>Quick picks</b>, click <b>▶ Run review</b>, then click <b>Open report</b>.</li>
-      </ol>
-      <a class="btn b-green" href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe">⬇ Download Stock-Review-Setup.exe</a>
-      <div class="tip">💡 <b>Tip of the Day:</b> Yahoo limits how fast you can pull data on big runs. If some tickers say FAIL, wait a few
-        minutes and run the same thing again. It picks up where it left off and fills in the gaps.</div>
-      <p class="muted">Reports are saved to <code>Documents\Stock Review\reports</code>.</p>
+  <section id="honest">
+    <div class="wrap">
+      <p class="kicker">The honesty rule</p>
+      <h2>It never makes up a number.</h2>
+      <div class="rules">
+        <div class="rule"><b>Yahoo doesn't have a value</b><span>The cell stays blank (or shows <code>n/a</code> in rich mode). It is never filled with 0 or a guess.</span></div>
+        <div class="rule"><b>A ticker can't be fetched</b><span>It is named in the window and listed in a "could not fetch" section of the report instead of being quietly dropped.</span></div>
+        <div class="rule"><b>Yahoo rate-limits you</b><span>The app retries politely with growing pauses, shows each retry, and saves its progress so a rerun resumes.</span></div>
+        <div class="rule"><b>You press Cancel or Finish now</b><span>Everything fetched so far is still written, as a clearly marked partial report.</span></div>
+        <div class="rule"><b>A ticker doesn't belong in the sector you picked</b><span>It is removed and listed, along with the industry that ruled it out.</span></div>
+      </div>
+      <p class="fine">The app connects to Yahoo Finance for the numbers, and to Wikipedia and the ASX for index membership lists. Nothing else.</p>
+    </div>
+  </section>
 
-      <div class="group g-green"><span class="legend">Run from source (any OS)</span>
-<div class="field">git clone https://github.com/nxt549/stock-review
+  <section id="install">
+    <div class="wrap">
+      <p class="kicker">Install</p>
+      <h2>Up and running in about a minute.</h2>
+      <div class="install">
+        <div class="card">
+          <ol class="do">
+            <li><a href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe"><b>Download Stock-Review-Setup.exe</b></a>.</li>
+            <li>Open it. If you see a blue <i>"Windows protected your PC"</i> box, click <b>More info</b>, then <b>Run anyway</b>. This only means the app is new to Windows. You'll only see it once.</li>
+            <li>Click <b>Next → Install → Finish</b>. You don't need an admin password or Python.</li>
+            <li>Open <b>Stock Review</b> from your desktop, pick a list in the sidebar, press <b>Run review</b>, then <b>Copy for AI</b>.</li>
+          </ol>
+          <a class="btn primary" href="https://github.com/nxt549/stock-review/releases/latest/download/Stock-Review-Setup.exe">Download Stock-Review-Setup.exe</a>
+          <p class="fine">Reports are saved to <code>Documents\Stock Review\reports</code>.</p>
+        </div>
+        <div>
+          <div class="tip"><b>Big runs get rate-limited.</b> If some tickers say Failed, wait a few minutes and run the same thing again.
+            It picks up where it left off and fills in the gaps.</div>
+          <div class="file" style="margin-top:16px">
+            <div class="bar"><span>Run from source (any OS)</span><span>Python 3.11+</span></div>
+<pre>git clone https://github.com/nxt549/stock-review
 cd stock-review
 pip install -r requirements.txt
-python stock_review_gui.py                 # the window
-python stock_review.py --source japan      # the command line
-python stock_review.py --list-groups       # every region and sector</div>
+python stock_review_board.py           # the window
+python stock_review_gui.py             # the Classic window
+python stock_review.py --source japan  # the command line
+python stock_review.py --list-groups   # every region and sector</pre>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="win" aria-labelledby="honest">
-    <div class="titlebar"><span>The honesty rule</span></div>
-    <div class="body">
-      <h2 id="honest">It never makes up a number</h2>
-      <div class="scroll-x">
-      <table>
-        <tr><th>If…</th><th>Stock Review…</th></tr>
-        <tr><td>Yahoo doesn't have a value</td><td>leaves the cell blank (or shows <code>n/a</code> in rich mode). It never fills in 0 or a guess.</td></tr>
-        <tr><td>A ticker can't be fetched</td><td>lists it in a "could not fetch" section instead of quietly dropping it</td></tr>
-        <tr><td>Yahoo rate-limits you</td><td>retries politely with growing pauses, shows each retry, and saves its progress so a rerun resumes</td></tr>
-        <tr><td>You click Cancel</td><td>still writes everything fetched so far as a clearly marked partial report</td></tr>
-        <tr><td>A ticker doesn't really belong in the sector you picked</td><td>removes it and lists it, along with the industry that ruled it out</td></tr>
-      </table>
+  <section id="editions">
+    <div class="wrap">
+      <p class="kicker">Editions</p>
+      <h2>Three ways in, one engine.</h2>
+      <p class="sub">The installer includes all three. They run the same code and write the same reports.</p>
+      <div class="editions">
+        <div class="card"><span class="tag">Main</span><h3>Stock Review</h3>
+          <p class="muted">The window above: a live table, a mosaic of the whole run, filters, find, dark and light themes, and Copy for AI.</p></div>
+        <div class="card"><span class="tag">Retro</span><h3>Stock Review Classic</h3>
+          <p class="muted">A proper 90s program: 13 ASCII-art channels play while it works, with Quick picks, Tip of the Day and a Crystal Ball (Ctrl+8).</p>
+          <div class="w98" aria-hidden="true"><div class="t">MS-DOS Prompt - STOCK REVIEW</div>
+<pre>        ___
+       /   \     to the moon...
+      | o o |
+     /|_____|\
+       <span class="y">/ \/ \</span>
+ [████████████░░░░░░]  134/200</pre></div></div>
+        <div class="card"><span class="tag">Scripts</span><h3>Stock Review Terminal</h3>
+          <p class="muted">The same engine with command-line flags, and the animations in your console. For developers, the repo also includes a
+            deterministic 0–100 scoring pipeline with a backtest harness. See the
+            <a href="https://github.com/nxt549/stock-review#readme">README</a>.</p></div>
       </div>
-      <p style="margin-top:10px">The app only connects to Yahoo Finance. There are no accounts and no telemetry.</p>
-    </div>
-  </section>
-
-  <section class="win" aria-labelledby="extras">
-    <div class="titlebar"><span>Little luxuries</span></div>
-    <div class="body">
-      <h2 id="extras">Built like a proper 90s program</h2>
-      <ul>
-        <li>13 ASCII-art channels play while it works (rocket, whale, bank vault, harbour…). Double-click the DOS title bar to switch.</li>
-        <li>Quick picks, tooltips, Recent reports, Tip of the Day, a Crystal Ball (Ctrl+8) and a lifetime odometer</li>
-        <li>A <b>Terminal</b> edition that runs the same engine with command-line flags and the animations in your console</li>
-        <li>For developers, the repo also includes a deterministic <b>0–100 scoring pipeline</b> with a backtest harness. See the
-          <a href="https://github.com/nxt549/stock-review#readme">README</a>.</li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="win" aria-label="Disclaimer">
-    <div class="titlebar"><span>⚠ Important</span></div>
-    <div class="body">
-      <p><b>Not financial advice.</b> Stock Review is an automated research screen that gathers numbers into a tidy file. Yahoo Finance
-        data can be wrong, delayed or missing, so check it before you act on anything. Decisions are yours (and ideally a licensed adviser's).</p>
-      <p class="muted">Made for fun by NXT.</p>
     </div>
   </section>
 
 </main>
+
+<footer>
+  <div class="wrap">
+    <p><b>Not financial advice.</b> Stock Review is an automated research screen that gathers numbers into a tidy file. Yahoo Finance
+      data can be wrong, delayed or missing, so check it before you act on anything. Decisions are yours (and ideally a licensed adviser's).</p>
+    <p class="fine">Made for fun by NXT. <a href="https://github.com/nxt549/stock-review">Source on GitHub</a>.</p>
+  </div>
+</footer>
+
+<script>
+  // Theme button: follows the system until you choose. The choice is a
+  // convenience only, so a blocked localStorage just means it is not remembered.
+  (function () {
+    var root = document.documentElement, key = "stock-review-theme";
+    try { var saved = localStorage.getItem(key); if (saved) root.dataset.theme = saved; } catch (e) {}
+    document.getElementById("theme").addEventListener("click", function () {
+      var dark = root.dataset.theme ? root.dataset.theme === "dark"
+                                    : !matchMedia("(prefers-color-scheme: light)").matches;
+      root.dataset.theme = dark ? "light" : "dark";
+      try { localStorage.setItem(key, root.dataset.theme); } catch (e) {}
+    });
+  })();
+</script>
 </body>
 </html>

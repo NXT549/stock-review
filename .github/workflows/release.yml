@@ -23,6 +23,7 @@ on:
       - "stock_review.py"
       - "stock_review_gui.py"
       - "stock_review_board.py"
+      - "tests/**"
       - ".github/workflows/release.yml"
   workflow_dispatch:
     inputs:
@@ -56,6 +57,14 @@ jobs:
           python tests/test_gui.py
           python tests/test_gui_board.py
 
+      # Opens the real main window on this Windows machine and drives it through
+      # a whole offline session (every source, a run, sorting, themes, resize).
+      # A window that cannot open or misbehaves must never reach a release.
+      - name: Open and drive the real window
+        env:
+          STOCK_REVIEW_WINDOW_TEST: "1"
+        run: python tests/test_gui_board_window.py
+
       - name: Freeze with PyInstaller
         run: python -m PyInstaller packaging/stock_review_gui.spec --noconfirm --clean
 
@@ -65,6 +74,18 @@ jobs:
           foreach ($e in @("dist\Stock Review\Stock Review.exe", "dist\Stock Review\Stock Review Terminal.exe", "dist\Stock Review\Stock Review Classic.exe")) {
             if (-not (Test-Path $e)) { throw "missing: $e" }
           }
+
+      # The frozen main exe must open its window and close by itself. A crash in
+      # a windowed exe shows a dialog and never exits, hence the timeout.
+      - name: Open the frozen main window
+        shell: pwsh
+        run: |
+          $env:STOCK_REVIEW_SMOKE_MS = "4000"
+          $p = Start-Process -PassThru -FilePath "dist\Stock Review\Stock Review.exe"
+          $null = $p.Handle
+          if (-not $p.WaitForExit(90000)) { $p.Kill(); throw "Stock Review.exe did not close by itself (crashed or hung)" }
+          if ($p.ExitCode -ne 0) { throw "Stock Review.exe exited with code $($p.ExitCode)" }
+          Write-Host "Stock Review.exe opened and closed cleanly"
 
       # Fetches one ticker from Yahoo inside the frozen exe. Yahoo sometimes
       # blocks CI machines, so a failure here is a warning, not a broken build.

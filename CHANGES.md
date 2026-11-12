@@ -1,3 +1,49 @@
+# Changes — 2.5 (2026-11-12): the main window and the website, redesigned
+
+A redesign of the Live board (what `Stock Review.exe` opens) and of the website.
+No scoring, fetch-result or report changes; the Classic (Win98) window and the
+Terminal edition are untouched.
+
+- **One frame that stays put.** The title of what will run, a plain-English
+  line, where the file will be saved and the **Run** button now sit together at
+  the top of the main pane. Under them, a single status band reads idle, running
+  or done in the same place, so the table no longer jumps between states.
+- **A proper table.** Each ticker shows its name, sector, price (in its listing
+  currency) and 1-month return with a small bar, plus a status mark. Click a
+  heading to sort; a ticker with no value for that column always sorts last
+  rather than being treated as 0. Filter with the All / Fetched / Retrying /
+  Failed chips (they double as the live counts) or search with Ctrl+F.
+- **The mosaic.** One small square per ticker, coloured by its 1-month return
+  (grey = no return available, hollow red = failed), filling in as the run goes.
+  Hover a square for the ticker, click it to jump to its row.
+- **Light theme**, next to the dark one, with an Auto setting that follows
+  Windows. Every text colour is checked against WCAG AA in both.
+- **Options are a side panel**, not a pop-up, and save as you change them. A bad
+  Limit or Workers value is flagged while you type instead of when you press Run.
+- **Regions have real names** ("ASX 200", "Nikkei 225 (Japan)") instead of
+  internal keys.
+- Failed tickers are named on the result band, grouped by reason, and listed
+  first in the table. No time estimate is shown while the app is deliberately
+  pausing between retries (it used to say "about 1 s left" during a 10 s pause).
+- The log has a visible button (it lights up when there is new output) and no
+  longer opens itself on every run; it still opens when no report is written.
+- Keyboard: every sidebar item, chip and option can be reached with Tab; Ctrl+1
+  to Ctrl+5 pick a source, Ctrl+, opens Options, arrows / PgUp / PgDn move in
+  the table, Enter or Ctrl+C copies the selected ticker.
+- Sharper on high-DPI screens: the window now follows the Windows display scale.
+- **Website** rebuilt to match the app it ships (dark and light, an illustration
+  of the window mid-run, updated install steps). It now also says plainly that
+  index lists come from Wikipedia and the ASX. The Classic edition keeps its
+  Windows 98 look there too.
+- `README.txt` / `INSTALL.txt` describe the main window (they still described
+  the Classic one).
+- Developers: the view is a `BoardApp` class; tokens live in
+  `review/gui_board_theme.py`, the table and mosaic in
+  `review/gui_board_table.py`. See DESIGN.md "Live board". The Windows build
+  now opens the real window and drives it through an offline session
+  (`tests/test_gui_board_window.py`), and checks that the frozen main exe opens
+  and closes cleanly, before anything can be released.
+
 # Changes — 2.4 (2026-11-11): faster, sturdier index lists
 
 `review/universe.py` (the `--source` / `--sector` lists) was rewritten. Every

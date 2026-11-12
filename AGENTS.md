@@ -106,7 +106,10 @@ for t in tests/test_*.py; do python "$t" || echo "FAIL $t"; done
 ```
 
 All tests are offline (network is monkeypatched). `test_gui.py` never opens a
-window. On Python 3.13 the exact pins in `requirements.txt` fail to build
+window. `test_gui_board_window.py` is the exception and is opt-in: it skips
+unless `STOCK_REVIEW_WINDOW_TEST=1`, then opens the real Live board and drives
+it with a fake worker. The Windows build workflow sets the flag, so a release
+cannot ship a window that fails to open there. On Python 3.13 the exact pins in `requirements.txt` fail to build
 (`pandas==2.2.2`, `ta`); installing unpinned `yfinance scipy SQLAlchemy requests
 beautifulsoup4 lxml schedule python-dotenv pandas numpy PyYAML` is enough for
 the whole suite to pass. `ta` is only needed for live technical indicators.

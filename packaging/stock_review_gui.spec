@@ -58,6 +58,8 @@ hiddenimports += [
     "stock_analyzer.review.gui_theme",
     "stock_analyzer.review.gui_anim",
     "stock_analyzer.review.gui_board",
+    "stock_analyzer.review.gui_board_theme",
+    "stock_analyzer.review.gui_board_table",
 ]
 
 a = Analysis(

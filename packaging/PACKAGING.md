@@ -6,7 +6,7 @@ executables** that share a single `_internal/` bundle:
 
 | Exe | What it is | Console |
 |-----|------------|---------|
-| `Stock Review.exe`          | the dark Live board window | none (`console=False`) |
+| `Stock Review.exe`          | the Live board window (dark / light) | none (`console=False`) |
 | `Stock Review Terminal.exe` | the real CLI + ASCII animations | yes (`console=True`) |
 | `Stock Review Classic.exe`  | the original Win98 window | none (`console=False`) |
 

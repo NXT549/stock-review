@@ -216,34 +216,94 @@ the same frames with Tk colour tags. HUD: progress bar, rate, ETA, ticker tape
 
 ---
 
-### Live board (`review/gui_board.py`) — second window, opt-in
+### Live board (`review/gui_board*.py`) — the main window ("the ledger")
 
-Dark, table-first, stdlib Tk/ttk. It is a *presentation* layer only: it builds
-the same argv (`gui.build_argv`), runs the same worker (`gui._run_review`) and
-never changes report contents. Rules:
+What `Stock Review.exe` opens. Table-first, dark and light, stdlib Tk only. It
+is a *presentation* layer: it builds the same argv (`gui.build_argv`), runs the
+same worker (`gui._run_review`) and never changes report contents.
 
-- One accent (muted teal) plus status colours used **only** for status (green
-  fetched, amber retrying, red failed). No gradients, glow, emoji or confetti.
-- Every number on screen is real: table rows come from the run's own events and
-  the tape shows fetched tickers' 1-month return. Unknown -> omitted, never 0.
-  There is no score and nothing reads as a recommendation.
+| Module | Holds |
+|---|---|
+| `gui_board.py` | pure model + helpers (`BoardModel`, `filter_rows`, `sort_rows`, `finish_summary`, `failure_line`, …) and `BoardApp`, the window |
+| `gui_board_theme.py` | `Theme` tokens (`DARK`, `LIGHT`), `contrast()`, `heat()`, `detect_system_theme()`, font choice. No Tk |
+| `gui_board_table.py` | pure geometry + `BoardTable` (virtualised canvas grid) and `Mosaic` |
+
+**Layout (one frame that does not jump).** Header (brand, tape of latest
+1-month returns, Log / theme / Options) → sidebar (what to review, recent
+reports) → main pane: command header (title, plain-English hint, output summary
+and path, **Run** beside it; Run swaps to Cancel in place) → per-source input →
+**status band** → filter chips + find box → table → optional log → footer (key
+hints, status). Options are a drawer over the right edge, not a modal, and save
+as they change; a bad Limit/Workers value tints its field and disables Run with
+the reason on the meta line.
+
+**The status band** is one fixed slot with three states of identical height
+(idle: what a run produces + latest report; running: headline, mood, clock,
+progress bar; done: result, failed tickers by name, Copy for AI / Open report /
+Open folder / Retry). When the window is wide enough its right side holds the
+**mosaic**: one square per ticker, laid out for the whole run so it fills in
+rather than reflows.
+
+**Tokens** (`gui_board_theme.py`; the website copies them):
+
+| Role | Dark | Light |
+|---|---|---|
+| `bg` / `surface` / `raised` | `#0e1114` / `#151a1f` / `#1b2128` | `#f1f3f1` / `#ffffff` / `#f6f8f6` |
+| `ink` / `muted` | `#e6eaef` / `#9ca7b4` | `#161b1e` / `#566067` |
+| `accent` (teal of the app icon, tuned) | `#35b8c6` | `#0b7480` |
+| `ok` / `warn` / `bad` | `#6cc777` / `#e2ad52` / `#f2858e` | `#1c7a3e` / `#855600` / `#b3261e` |
+
+Fonts: Segoe UI (UI), Cascadia Mono / Consolas (tickers, numbers, ASCII), with
+fallbacks. Pixel sizes are written for 96 dpi and multiplied by Tk's scaling
+(`BoardApp.px`), and the process is DPI-aware on Windows.
+
+Rules:
+
+- **One accent** for actions, focus and selection. Status colours are used
+  **only** for status and for the sign of a return, and always beside a word or
+  a shape (dot = fetched, ring = retrying, cross = failed, pip = queued; a
+  failed square in the mosaic is hollow), so nothing depends on hue alone. No
+  gradients, glow, emoji or confetti.
+- **Contrast is tested.** Every text/background pair the window draws is listed
+  in `TEXT_PAIRS` and must clear WCAG AA 4.5:1 in both themes (3:1 for
+  `INDICATOR_PAIRS`); `tests/test_gui_board.py` walks the lists. Add a pair
+  when you introduce a combination. `faint` is decoration only, never text.
+- **Every number on screen is real**: rows come from the run's own events
+  (name, sector, price in listing currency, 1-month return). Unknown → blank,
+  never 0; a missing value draws no bar, gets a neutral grey square, and sorts
+  last in both directions. Market cap is not shown because it is not
+  USD-normalised until after the fetch. No score; nothing reads as advice.
 - Counts are cumulative across the whole run (`BoardModel`); a retry round's
   smaller batch never shrinks the total, and failures between rounds read as
-  "retrying". Failures end up named on the result card (project rule 5).
-- The fun is small and contained: the ASCII rocket strip, one plain mood
-  sentence, a pulse dot and a `>` marker on the progress bar.
+  "retrying" (in the counts and in the Retrying filter). No ETA is shown while
+  the run is deliberately waiting. Failed tickers are named on the band and
+  listed first in the table (project rule 5).
+- The view is rebuilt from state (`BoardApp.build`), which is how a theme
+  switch works: nothing a run produced may live only in a widget. Theme
+  switching is disabled during a run. Border-only containers go through
+  `BoardApp.panel` (Tk paints a frame's border black when a child has focus).
+- The fun is small and contained: the ASCII `~=>` rocket riding the progress
+  bar, the larger rocket in the empty state, one plain mood sentence, a pulse
+  dot.
 - `BoardProgress.wants_rec = True` makes `fetch._fetch_batch` hand it each
   ticker's record; sinks without the flag keep the old `update()` signature.
+- Tk 8.6 (the frozen build) and Tk 9 both work; avoid APIs only one has.
 
 ## 7. Packaging
 
-PyInstaller one-folder bundle with two exes from one `frozen_entry.py`:
-`Stock Review.exe` (GUI) and `Stock Review Terminal.exe` (CLI; chosen by exe
-name). Inno Setup builds a per-user `Stock Review Setup.exe` (no admin). Frozen
+PyInstaller one-folder bundle with three exes from one `frozen_entry.py`,
+chosen by exe name: `Stock Review.exe` (the Live board), `Stock Review
+Classic.exe` (the Win98 window) and `Stock Review Terminal.exe` (CLI). Inno Setup builds a per-user `Stock Review Setup.exe` (no admin). Frozen
 data dir: first writable `Documents\Stock Review`. See `packaging/PACKAGING.md`.
 
 ## 8. Website (`docs/`)
 
 GitHub Pages landing page: static `docs/index.html`, no build step, deployed by
-`.github/workflows/pages.yml` on pushes to `main` that touch `docs/`. It reuses
-the Win98 tokens above so the site looks like the app. Keep it dependency-free.
+`.github/workflows/pages.yml` on pushes to `main` that touch `docs/`. It copies
+the Live board tokens (dark by default, light via `prefers-color-scheme` or the
+Theme button) so the site looks like the app it ships, and its hero is an
+HTML/CSS illustration of the window mid-run, captioned as example data. Only
+the Classic edition card keeps the Win98 look. Keep it dependency-free (system
+fonts, inline CSS, one small inline script for the theme button); motion is
+off under `prefers-reduced-motion`. The download links must keep pointing at
+`releases/latest/download/Stock-Review-Setup.exe` / `-Portable.zip`.

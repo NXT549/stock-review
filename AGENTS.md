@@ -68,7 +68,9 @@ src/stock_analyzer/
     gui.py                  Tk app (Win98 style): run(), build_argv(), settings, dialogs, menus
     gui_theme.py            Win98 palette + widget factories (button98, group98, Dropdown98, …)
     gui_anim.py             TkAnimator: renders ascii_art scenes into a Tk Text widget
-    gui_board.py            "Live board": dark table-first window (main app in the Windows build), BoardModel/classify_error are pure
+    gui_board.py            "Live board": the main window of the Windows build. Pure model/helpers on top, BoardApp (the view) below
+    gui_board_theme.py      Live board tokens: DARK / LIGHT Theme, contrast(), heat(), system-theme detection (no Tk)
+    gui_board_table.py      Live board widgets: BoardTable (virtualised canvas grid), Mosaic; pure geometry on top
     ascii_art.py            13 ~100×30 ANSI scenes + HUD; Animator for real terminals
 stock_review.py             CLI shim; re-exports the whole review namespace (tests import it)
 stock_review_gui.py         GUI launcher (what PyInstaller freezes)
@@ -93,7 +95,7 @@ python scripts/run_minimal_slice.py --synthetic   # offline end-to-end pipeline 
 python stock_review.py --list-groups     # no network
 python stock_review.py AAPL MSFT --out reports/t.md   # needs network (yfinance)
 python stock_review_gui.py               # Tk window (needs a display)
-python stock_review_board.py             # the dark "Live board" window
+python stock_review_board.py             # the "Live board" window (main app; dark / light)
 ```
 
 **Tests** are plain scripts (pytest optional, not required). Run all:
@@ -122,11 +124,12 @@ There is no linter/formatter config in the repo; match surrounding style
 | Change scoring weights | `config/config.yaml` → `scoring.*` (then backtest) — not code |
 | Change pipeline report | `reporting.py`; `tests/test_reporting.py` |
 | Add a column to the review grid | `review/fetch.py` (populate key) → `review/format.py` `COLUMNS` → legends in `review/report.py` → regenerate `tests/golden/*.csv` |
-| Add a `--source` / region | `review/universe.py`: a row in `INDEXES` (the page) and one in `UNIVERSES` (the name, aliases, `sector_region=True` only if the table has GICS columns); `SOURCES` / `REGION_RECORDS` follow. Then `gui.py` `_SOURCE_HINTS` / quick picks and the name lists in `tests/test_universe.py` |
+| Add a `--source` / region | `review/universe.py`: a row in `INDEXES` (the page) and one in `UNIVERSES` (the name, aliases, `sector_region=True` only if the table has GICS columns); `SOURCES` / `REGION_RECORDS` follow. Then `gui.py` `_SOURCE_HINTS` / quick picks, `gui_board.py` `SOURCE_NAMES` (a test fails until it has one) and the name lists in `tests/test_universe.py` |
 | Add a `--sector` | `review/universe.py` `SECTORS` + `SECTOR_ALIASES` |
 | New CLI flag | `review/cli.py` + `gui.py` `build_argv()` (if exposed) + `tests/test_cli.py` / `test_gui.py` |
 | GUI look | `review/gui_theme.py` tokens/factories — see DESIGN.md "GUI design system" |
-| Live board window | `review/gui_board.py` (palette `P`, `BoardModel`); reuses `gui.build_argv` / `_run_review`; `tests/test_gui_board.py` |
+| Live board window | `review/gui_board.py` (`BoardApp`, `BoardModel`), colours in `gui_board_theme.py` (add new text/background pairs to `TEXT_PAIRS`), table / mosaic in `gui_board_table.py`; reuses `gui.build_argv` / `_run_review`; `tests/test_gui_board.py`. See DESIGN.md "Live board" |
+| Live board column | `gui_board.py`: `Row` field + `BoardProgress.update` + `BoardModel.on_progress` → `COLUMNS` → `BoardApp.cell` → `sort_rows` |
 | New ASCII scene | `review/ascii_art.py` → append to `ANIMATIONS` (same dict shape); GUI picks it up automatically |
 | DB schema | `storage/models.py` → regenerate `database/schema.sql`; `tests/test_storage.py` |
 | Release | bump `APP_VERSION` in `review/gui.py`, `AppVersion` in `packaging/installer.iss`, headers of `README.txt`/`INSTALL.txt`; add a CHANGES.md section; merge to `main`, then push a tag `vX.Y`. `.github/workflows/release.yml` builds `Stock-Review-Setup.exe` + `Stock-Review-Portable.zip` on Windows and publishes the GitHub Release. Keep those asset names fixed: the website and README link to `releases/latest/download/<name>` |
@@ -152,6 +155,12 @@ There is no linter/formatter config in the repo; match surrounding style
   backtest also dedupes at read time. SQLite FKs are enabled via PRAGMA.
 - "Unknown" sector is never a peer group — always ranks universe-wide.
 - GUI data dir: source checkout → repo root; frozen → `Documents\Stock Review`.
+- No Python here ships `tkinter`. To see the Live board, get one that does
+  (`uv python install 3.12`, then a venv with `yfinance pandas requests`) and
+  run it under `xvfb-run`; build a `BoardApp(tk.Tk())` yourself, point
+  `gui_board._gui.BASE_DIR` / `BOARD_SETTINGS` at a temp dir, and swap
+  `gui_board._gui._run_review` for a fake worker that posts queue events.
+  Xvfb has no TrueType fonts unless you pass `-fp` a `mkfontscale`d folder.
 - Env switches: `STOCK_REVIEW_SELFTEST=1` (headless GUI worker test),
   `STOCK_REVIEW_SMOKE_MS=N` (auto-close the window). Parsed by `gui.env_flag`.
 - README.md references `IMPLEMENTATION_PLAN.md`, which is not in the repo.

@@ -163,6 +163,24 @@ def detect_system_theme() -> str:
         return "dark"
 
 
+def detect_reduced_motion() -> bool:
+    """True when Windows has "Animation effects" turned off (Settings >
+    Accessibility > Visual effects). False anywhere the question cannot be
+    answered with the standard library; the Options drawer has the switch."""
+    if not sys.platform.startswith("win"):
+        return False
+    try:
+        import ctypes
+        enabled = ctypes.c_int(1)
+        spi_getclientareaanimation = 0x1042
+        if not ctypes.windll.user32.SystemParametersInfoW(
+                spi_getclientareaanimation, 0, ctypes.byref(enabled), 0):
+            return False
+        return not enabled.value
+    except Exception:  # noqa: BLE001 - older Windows; assume motion is fine
+        return False
+
+
 def resolve_theme(choice, system: str | None = None) -> Theme:
     """Map a stored preference ('auto' | 'dark' | 'light', or junk) to a Theme."""
     choice = str(choice or "auto").strip().lower()

@@ -317,6 +317,7 @@ def test_theme_contrast_wcag():
     assert th.pick_font(["dejavu sans", "fixed"], ["Segoe UI", "DejaVu Sans"], "x") \
         == "dejavu sans"
     assert th.pick_font([], ["Segoe UI"], "TkDefaultFont") == "TkDefaultFont"
+    assert isinstance(th.detect_reduced_motion(), bool)   # never raises, any platform
     assert th.mix("#000000", "#ffffff", 0.5) == "#808080"
     # a missing return is a neutral grey: never the colour of a zero return
     assert th.heat(th.DARK, None) == th.DARK.line_strong != th.heat(th.DARK, 0.0)

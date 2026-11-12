@@ -11,7 +11,10 @@ Classic edition. It reuses that module's worker plumbing (``build_argv`` ->
 * filter chips that double as the live counts, and a find box;
 * a per-ticker table that fills in live (see :mod:`.gui_board_table`);
 * an options drawer, a log panel and a keyboard-hint footer;
-* dark and light themes (see :mod:`.gui_board_theme`).
+* dark and light themes (see :mod:`.gui_board_theme`);
+* motion while a run is on (see :mod:`.gui_board_fx`): a loading scene until
+  the first ticker lands, a bar that glides, tickers popping up beside the
+  rocket, and a short lift-off after a clean run. One switch turns it all off.
 
 Run it with ``python stock_review_board.py`` or ``python -m
 stock_analyzer.review.gui_board``. stdlib-only (tkinter + ttk), like the rest of
@@ -38,10 +41,12 @@ from datetime import date, datetime
 from pathlib import Path
 
 from . import gui as _gui
+from . import gui_board_fx as _fx
 from . import gui_board_theme as _theme
 from .format import NA, _num, pct, price as fmt_price
 from .gui import QueueProgress, build_argv, expected_output_path, universe_hint
-from .gui_board_table import BoardTable, Cell, Column, Mosaic, draw_mark
+from .gui_board_table import (BoardTable, Cell, Column, Mosaic, Scene, ScenePane,
+                              draw_mark)
 from .symbols import clean_symbol
 from .universe import DEFAULT_TICKERS, REGION_RECORDS, SECTORS, SOURCES
 
@@ -218,6 +223,11 @@ class BoardModel:
             return "Fetching. Rate limits are normal, the app waits and retries for you."
         return "Looking up the list and fetching prices."
 
+    def calm(self) -> bool:
+        """Nothing is waiting, retrying or failing, so the mood line has
+        nothing it must say and may carry a milestone quip instead."""
+        return not (self.wait or self.note or self.counts()["fail_raw"])
+
     def tape(self, n: int = 8) -> list[tuple[str, float]]:
         """(ticker, 1-month return as a fraction) for the latest fetched names.
         Tickers whose return is unknown are skipped, never shown as 0."""
@@ -229,6 +239,12 @@ class BoardModel:
             if len(out) >= n:
                 break
         return list(reversed(out))
+
+
+def run_mood(model: BoardModel, quip: str = "") -> str:
+    """The mood line of a run. A milestone quip is only shown while the run is
+    calm: a retry, a slow ticker or a failure always gets the line."""
+    return quip if quip and model.calm() else model.mood()
 
 
 class BoardProgress(QueueProgress):
@@ -647,10 +663,12 @@ class BoardApp:
                   "head": (ui, 9, "bold"), "h2": (ui, 12, "bold"),
                   "title": (ui, 17, "bold"), "brand": (ui, 11, "bold"),
                   "mono": (mono, 10), "mono_s": (mono, 9), "mono_b": (mono, 10, "bold"),
-                  "art": (mono, 9)}
+                  "mono_l": (mono, 13, "bold"), "art": (mono, 9)}
         self.line = {k: tkfont.Font(font=self.f[k]).metrics("linespace")
-                     for k in ("ui", "h2", "small")}
+                     for k in ("ui", "h2", "small", "mono_b")}
+        self._mono_b = tkfont.Font(font=self.f["mono_b"])
         self._mono_s = tkfont.Font(font=self.f["mono_s"])
+        self._pct_w = tkfont.Font(font=self.f["mono_l"]).measure("100%")
 
         saved = load_board_settings()
         self.settings = {  # the options drawer edits these
@@ -662,7 +680,14 @@ class BoardApp:
             "outdir": str(saved.get("outdir", "")),
             "theme": (saved.get("theme") if saved.get("theme") in _theme.THEME_CHOICES
                       else "auto"),
+            # animations: on unless Windows says the user turned them off
+            "motion": (saved["motion"] if isinstance(saved.get("motion"), bool)
+                       else not _theme.detect_reduced_motion()),
         }
+        try:        # which loading scene the next run opens with (they take turns)
+            self.scene_no = int(saved.get("scene", 0))
+        except (TypeError, ValueError):
+            self.scene_no = 0
         self.mode = saved.get("mode") if saved.get("mode") in MODE_KEYS else "curated"
         self.sources, self.regions = source_choices(), region_choices()
         self.sectors = sector_choices()
@@ -700,6 +725,12 @@ class BoardApp:
         self.nav_hover = None
         self._band_built = None
         self.shell = None
+        self.fx: _fx.RunFx | None = None    # the current run's animation state
+        self.fx_error: str | None = None    # why motion was dropped, if it was
+        self.fete = None                    # the lift-off canvas while it plays
+        self.scene_pane: ScenePane | None = None    # the loading scene, while it shows
+        self._fete_frame = 0
+        self._fx_job = None
 
         self.build()
         self.refresh_preview()
@@ -715,6 +746,8 @@ class BoardApp:
         root.bind("<Control-comma>", lambda _e: self.toggle_drawer())
         for i, key in enumerate(MODE_KEYS, 1):
             root.bind(f"<Control-Key-{i}>", lambda _e, k=key: self.set_mode(k))
+        root.bind("<Key>", self.end_fete, add="+")       # any key or click skips
+        root.bind("<Button-1>", self.end_fete, add="+")  # the lift-off
         root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.animate()
 
@@ -907,6 +940,7 @@ class BoardApp:
         if self.shell is not None:
             self.shell.destroy()
         self._band_built = None
+        self.fete = self.scene_pane = None     # they went with the old shell
         self.shell = shell = tk.Frame(self.root, bg=t.bg)
         shell.grid_columnconfigure(0, weight=1)
         shell.grid_rowconfigure(1, weight=1)
@@ -1079,7 +1113,7 @@ class BoardApp:
                                px(2 + 8 + 32) + 2)
 
         # -- row 3: filter chips + find --------------------------------------- #
-        tools = tk.Frame(main, bg=t.bg)
+        self.tools = tools = tk.Frame(main, bg=t.bg)
         tools.grid(row=3, column=0, sticky="ew", pady=(px(14), px(8)))
         self.chips: dict[str, tuple] = {}
         for key, word, shape in FILTERS:
@@ -1197,6 +1231,8 @@ class BoardApp:
         section("Theme")
         self.segmented(d, (("auto", "Auto"), ("dark", "Dark"), ("light", "Light")),
                        self.settings["theme"], self.set_theme).pack(anchor="w", padx=px(18))
+        self.check(d, "Animations while a review runs", "motion").pack(
+            anchor="w", padx=px(16), pady=(px(8), 0))
         note("Options are saved as you change them.").pack_configure(
             side="bottom", pady=(0, px(14)))
 
@@ -1230,7 +1266,8 @@ class BoardApp:
         save_board_settings({"mode": self.mode, "source": self.source,
                              "sector": self.sector, "region": self.region,
                              "tickers": self.tickers_var.get(),
-                             "file": self.file_var.get(), **self.settings})
+                             "file": self.file_var.get(), "scene": self.scene_no,
+                             **self.settings})
 
     # -- sidebar ------------------------------------------------------------- #
     def paint_nav(self) -> None:
@@ -1374,6 +1411,7 @@ class BoardApp:
         cfg = self.current_cfg()
         tickers = preview_tickers(cfg)
         self.model.reset(tickers or ())
+        self.end_fete()
         if self.screen == "done":        # leaving a finished run: drop its leftovers
             self.status(READY)
             if self.log_auto:
@@ -1589,6 +1627,7 @@ class BoardApp:
             child.destroy()
         self._band_built = self.screen
         self.mosaic = None
+        self.fete = None                 # it lived in the band that was just cleared
         self._band_wide = self._band_is_wide()
         if self._band_wide:              # the mosaic takes the right of the band
             self._build_mosaic(self.band_body)
@@ -1707,7 +1746,7 @@ class BoardApp:
         self.mosaic = Mosaic(col, bg=t.raised, colour=self.mosaic_colour, empty=t.track,
                              width=px(self.MOSAIC_W), height=px(10),
                              on_hover=self._mosaic_hover, on_pick=self._mosaic_pick,
-                             on_layout=lambda: self._mosaic_hover(None))
+                             on_layout=lambda: self._mosaic_hover(None), fresh=t.ink)
         self.mosaic.canvas.pack(side="top", fill="both", expand=True)
         self.refresh_mosaic()
 
@@ -1766,7 +1805,7 @@ class BoardApp:
         c = m.counts()
         elapsed = time.monotonic() - self.t0 if self.t0 else 0
         self.run_title.configure(text=m.headline())
-        self.run_mood.configure(text=m.mood())
+        self.run_mood.configure(text=run_mood(m, self.fx.quip if self.fx else ""))
         self.run_clock.configure(text=fmt_clock(elapsed))
         # no estimate while the run is deliberately waiting: it would be wrong
         paused = m.in_retry_round or bool(m.wait)
@@ -1781,23 +1820,208 @@ class BoardApp:
         self.draw_track()
 
     def draw_track(self) -> None:
+        """The progress bar: segmented, the fetched share solid, the failed
+        share hollow, the true percentage beside it, the rocket on its leading
+        edge. With motion the fill glides and the latest tickers pop up by the
+        rocket; if any of that decoration fails, the run carries on without it."""
+        try:
+            self._draw_track(self.fx)
+        except Exception:  # noqa: BLE001 - motion is cosmetic, the run is not
+            if self.fx is None:
+                raise
+            self._fx_failed()
+            self._draw_track(None)
+
+    def _draw_track(self, fx) -> None:
         t, px, c = self.t, self.px, self.track
         c.delete("all")
         w, h = max(c.winfo_width(), 10), max(c.winfo_height(), 10)
-        y0, y1 = h - px(11), h - px(5)
         counts = self.model.counts()
-        total = counts["total"] or 1
-        ok_w = int(w * counts["ok"] / total)
-        fail_w = int(w * counts["fail_raw"] / total)
-        c.create_rectangle(0, y0, w, y1, fill=t.track, outline="")
-        if ok_w:
-            c.create_rectangle(0, y0, ok_w, y1, fill=t.accent, outline="")
-        if fail_w:
-            c.create_rectangle(ok_w, y0, ok_w + fail_w, y1, fill=t.warn, outline="")
-        trail = TRAIL[self.tick % len(TRAIL)]
-        lead = max(ok_w + fail_w, self._mono_s.measure(trail))
-        c.create_text(min(lead, w), y0 - px(1), text=trail, anchor="se",
-                      fill=t.accent_text, font=self.f["mono_s"])
+        total, done = counts["total"], counts["ok"] + counts["fail_raw"]
+        frac = self.model.fraction()
+        bw = max(px(40), w - self._pct_w - px(14))      # the bar; the rest is the %
+        y1 = h - px(2)
+        y0 = y1 - px(10)
+        cell, gap = px(8), px(2)
+        shown = fx.shown if fx else frac
+        ok_share = counts["ok"] / done if done else 1.0
+        cells = _fx.bar_cells(bw, shown * ok_share, shown * (1 - ok_share), cell, gap)
+        lit = range(0)
+        if fx and not total:                 # size not known yet: a sweeping block
+            lo, hi = _fx.scanner(fx.frame, len(cells))
+            lit = range(lo, hi)
+        for i, (x0, x1, kind) in enumerate(cells):
+            if kind == "ok" or i in lit:
+                c.create_rectangle(x0, y0, x1, y1, fill=t.accent, outline="")
+            elif kind == "fail":             # hollow: a shape, not only a colour
+                c.create_rectangle(x0, y0, x1 - 1, y1 - 1, fill=t.raised, outline=t.warn)
+            else:
+                c.create_rectangle(x0, y0, x1, y1, fill=t.track, outline="")
+        if total:                            # the real figure, never the eased one
+            c.create_text(w, h // 2, text=f"{int(frac * 100)}%", anchor="e",
+                          fill=t.ink, font=self.f["mono_l"])
+        ship = _fx.rocket(fx.frame) if fx else TRAIL[self.tick % len(TRAIL)]
+        ship_w = self._mono_s.measure(ship)
+        lead = min(max(round(bw * shown), ship_w), bw)
+        base = y0 - px(1)
+        c.create_text(lead, base, text=ship, anchor="se", fill=t.accent_text,
+                      font=self.f["mono_s"])
+        if not fx:
+            return
+        now = time.monotonic()
+        pops = fx.pops.live(now)
+        parts = [(p, p.ticker, pct(p.ret, sign=True) if p.ret is not None else "")
+                 for p in pops]              # an unknown return shows no figure
+        space = self._mono_s.measure(" ")
+        widths = [self._mono_s.measure(name) +
+                  ((space + self._mono_s.measure(ret)) if ret else 0)
+                  for _p, name, ret in parts]
+        spots = _fx.trail_layout(lead, ship_w, widths, bw, px(12))
+        for (p, name, ret), x in zip(parts, spots):
+            if x is None:
+                continue
+            y = base + _fx.pop_rise(now - p.born, px(6))
+            c.create_text(x, y, text=name, anchor="sw", fill=t.ink, font=self.f["mono_s"])
+            if ret:
+                c.create_text(x + self._mono_s.measure(name) + space, y, text=ret,
+                              anchor="sw", fill=t.ok if p.ret >= 0 else t.bad,
+                              font=self.f["mono_s"])
+
+    # -- motion: the loading scene, the glide, the lift-off -------------------------- #
+    def _fx_failed(self) -> None:
+        """Decoration must never break a run: note why, and carry on still."""
+        import traceback
+        self.fx_error = traceback.format_exc()
+        self.fx = None
+        self.end_fete()
+        try:
+            self.drop_scene()
+            if self.mosaic is not None:
+                self.mosaic.set_fresh(())
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _fx_start(self) -> None:
+        if self._fx_job is None:
+            self._fx_job = self.root.after(_fx.FX_MS, self.fx_tick)
+
+    def fx_tick(self) -> None:
+        """The fast loop. It only runs while something is moving (a run with
+        animations on, or the lift-off) and stops itself otherwise."""
+        self._fx_job = None
+        try:
+            if self.running and self.fx is not None:
+                self._fx_run(time.monotonic())
+            elif self.fete is not None:
+                self._fx_fete()
+            else:
+                return
+        except Exception:  # noqa: BLE001 - see _fx_failed
+            self._fx_failed()
+            return
+        self._fx_job = self.root.after(_fx.FX_MS, self.fx_tick)
+
+    def _fx_run(self, now: float) -> None:
+        fx, m = self.fx, self.model
+        fx.step(now, m.fraction(), m.counts()["total"])
+        if self._band_built == "run":
+            self._draw_track(fx)
+        # the scene: only while the list is still being looked up (no rows yet),
+        # and only once that has taken long enough to be worth a picture
+        if not m.rows and fx.elapsed(now) >= _fx.SCENE_DELAY:
+            if fx.frame % 2 == 0 or self.scene_pane is None:
+                self.play_scene(now)
+        elif self.scene_pane is not None:
+            self.drop_scene()
+        if self.mosaic is not None:
+            spots = (self.mosaic.index_of(tk_) for tk_ in fx.fresh(now))
+            self.mosaic.set_fresh(i for i in spots if i is not None)
+
+    def play_scene(self, now: float) -> None:
+        """Draw the loading scene's next frame over the filter chips and the
+        table (both are empty until the first ticker lands). The pane is placed,
+        not gridded, so nothing underneath moves; in a window too small for the
+        art it stays hidden and the table's own empty line shows instead."""
+        fx = self.fx
+        if self.scene_pane is None:
+            self.scene_pane = ScenePane(self.main, theme=self.t, art_font=self.f["art"],
+                                        ui_font=self.f["ui"], scale=self.scale)
+            self.scene_no = (fx.scene0 + 1) % len(_fx.SCENES)   # the next run's turn
+        pane, box = self.scene_pane, self.table.frame
+        y = self.tools.winfo_y()
+        w, h = self.main.winfo_width(), box.winfo_y() + box.winfo_height() - y
+        which = fx.scene(now)
+        frame = _fx.scene_frame(which, fx.frame // 2)
+        scene = Scene(frame.lines, frame.runs, _fx.scene_caption(which, fx.elapsed(now)),
+                      _fx.SCENE_COLS, _fx.SCENE_ROWS)
+        if pane.draw(scene, w, h):
+            pane.canvas.place(x=0, y=y, width=w, height=h)
+        else:
+            pane.canvas.place_forget()
+
+    def drop_scene(self) -> None:
+        pane, self.scene_pane = self.scene_pane, None
+        if pane is not None:
+            try:
+                pane.canvas.destroy()
+            except Exception:  # noqa: BLE001 - the shell it lived in may be gone
+                pass
+
+    def scene_showing(self) -> bool:
+        return self.scene_pane is not None and bool(self.scene_pane.canvas.winfo_manager())
+
+    def celebrate(self) -> None:
+        """A clean run ends with the rocket leaving and a few ASCII fireworks.
+
+        They play on a canvas *placed* over the lower rows of the finished
+        band, so the band underneath is already the real one: nothing changes
+        size, and when the canvas goes the buttons are simply there."""
+        self.root.update_idletasks()
+        body = self.band_text
+        rows = body.winfo_children()
+        if len(rows) < 3:
+            return
+        y = rows[1].winfo_y()
+        w, h = body.winfo_width(), body.winfo_height() - y
+        if w < self.px(240) or h < self.line["mono_b"]:
+            return                          # no room (or no window yet): skip it
+        self.fete = cv = self.tk.Canvas(body, bg=self.t.raised, highlightthickness=0,
+                                        bd=0)
+        cv.place(x=0, y=y, relwidth=1.0, height=h)
+        self._fete_frame = 0
+        self._fx_start()
+
+    def _fx_fete(self) -> None:
+        cv, t = self.fete, self.t
+        frame = self._fete_frame
+        if frame >= _fx.LIFTOFF_FRAMES or not cv.winfo_exists():
+            self.end_fete()
+            return
+        self._fete_frame += 1
+        cw, lh = max(1, self._mono_b.measure("M")), self.line["mono_b"]
+        w, h = cv.winfo_width(), cv.winfo_height()
+        cols, rows = w // cw, max(1, h // lh)
+        y0 = h - rows * lh                  # the stage sits on the bottom edge
+        cv.delete("all")
+        for row, col, text, tone in _fx.liftoff(frame, cols, rows):
+            cv.create_text(col * cw, y0 + row * lh, text=text, anchor="nw",
+                           fill=t.accent_text if tone == "accent" else t.muted,
+                           font=self.f["mono_b"])
+        if self.mosaic is not None:
+            grid_cols, n = self.mosaic.grid()
+            self.mosaic.set_fresh(_fx.sweep(frame, grid_cols, n))
+
+    def end_fete(self, _e=None) -> None:
+        """Stop the lift-off (it is over, or a key / click skipped it)."""
+        cv, self.fete = self.fete, None
+        if cv is None:
+            return
+        try:
+            cv.destroy()
+            if self.mosaic is not None:
+                self.mosaic.set_fresh(())
+        except Exception:  # noqa: BLE001 - the band it lived in may be gone
+            pass
 
     def animate(self) -> None:
         self.tick += 1
@@ -1880,6 +2104,8 @@ class BoardApp:
         self.apply_drawer()
         preview = preview_tickers(cfg) or []
         self.model.reset(preview)
+        self.end_fete()
+        self.fx = _fx.RunFx(self.scene_no) if self.settings["motion"] else None
         self.running, self.screen, self.summary = True, "run", None
         self.t0, self.wall0 = time.monotonic(), time.time()
         self.path = expected_output_path(cfg)
@@ -1908,6 +2134,8 @@ class BoardApp:
                          args=(argv, self.q, progress, self.cancel_ev),
                          daemon=True).start()
         self.root.after(80, self.drain)
+        if self.fx is not None:
+            self._fx_start()
 
     def cancel(self, _e=None) -> None:
         if self.running:
@@ -1930,6 +2158,9 @@ class BoardApp:
                 elif kind == "progress":
                     self.model.on_progress(payload)
                     changed = True
+                    if self.fx is not None and not payload.get("error"):
+                        row = self.model.rows[payload.get("ticker", "")]
+                        self.fx.land(row.ticker, row.ret_1m, time.monotonic())
                 elif kind == "retry":
                     self.model.on_retry(payload)
                     changed = True
@@ -1964,6 +2195,7 @@ class BoardApp:
             elapsed=elapsed, error=result.get("error"), note=self.model.note)
         self.screen = "done"
         self.root.title(APP_NAME)
+        self.drop_scene()
         self.refresh_recent()
         self.build_inputs()
         self.refresh_header()
@@ -1972,6 +2204,9 @@ class BoardApp:
         self.table.to_top()
         self.render_tape()
         self.paint_keys()
+        celebrate, self.fx = self.fx is not None and s["kind"] == "ok", None
+        if celebrate:                       # every ticker in, nothing cancelled
+            self.celebrate()
         if not s["actions"]:
             self.log_auto = not self.log_open   # opened for the user, so closed for them
             self.log_open = True

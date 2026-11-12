@@ -14,7 +14,7 @@
 ; A fixed AppId keeps upgrades/uninstall tied to the same entry across versions.
 AppId={{A7D3F1E2-9C4B-4A6E-8F21-3B5C7D9E0A11}
 AppName=Stock Review
-AppVersion=2.5
+AppVersion=2.6
 AppPublisher=NXT
 DefaultDirName={autopf}\Stock Review
 PrivilegesRequired=lowest

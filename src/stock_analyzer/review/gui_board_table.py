@@ -7,7 +7,8 @@ sortable headers and hover, and it only draws the rows that are on screen, so a
 2,000-ticker run costs the same as a 20-ticker one.
 
 The geometry is pure (no Tk) and lives in the functions at the top, which is
-what ``tests/test_gui_board.py`` covers. :class:`BoardTable` is the widget.
+what ``tests/test_gui_board.py`` covers. :class:`BoardTable` is the widget;
+:class:`Mosaic` and :class:`ScenePane` (the loading scene) live here too.
 The table never formats or invents data: the owner passes a ``cell(row, key)``
 callback returning a :class:`Cell`, and an empty ``Cell`` draws nothing.
 """
@@ -38,6 +39,17 @@ class Cell:
     bar: float | None = None   # signed fraction for the diverging bar
     bar_fg: str = ""
     sub: str = ""         # small muted suffix in its own fixed slot (currency)
+
+
+@dataclass(frozen=True)
+class Scene:
+    """One frame of an ASCII picture on a fixed character grid: the line art,
+    accent runs laid over it, and a caption underneath. See :class:`ScenePane`."""
+    lines: tuple            # one string per row
+    runs: tuple             # (row, column, text) drawn over the lines in the accent
+    caption: str = ""
+    cols: int = 100
+    rows: int = 30
 
 
 # --------------------------------------------------------------------------- #
@@ -131,6 +143,21 @@ def fit_text(text: str, width: int, measure) -> str:
         else:
             hi = mid - 1
     return (text[:lo].rstrip() + "…") if lo else ""
+
+
+def fit_art(width: int, height: int, cols: int, rows: int, measure,
+            sizes=range(7, 23)) -> int | None:
+    """Largest font size in ``sizes`` at which a ``cols`` x ``rows`` character
+    grid fits ``width`` x ``height``; ``measure(size) -> (char width, line
+    height)``. None when even the smallest does not fit: the caller then shows
+    something else rather than art too small to read."""
+    best = None
+    for size in sizes:
+        cw, lh = measure(size)
+        if cw * cols > width or lh * rows > height:
+            break
+        best = size
+    return best
 
 
 def mosaic_grid(n: int, width: int, height: int,
@@ -521,7 +548,8 @@ class Mosaic:
     between redraws and only recoloured, so a 2,000-ticker run stays cheap."""
 
     def __init__(self, parent, *, bg: str, colour, empty: str, width: int,
-                 height: int, on_hover=None, on_pick=None, on_layout=None) -> None:
+                 height: int, on_hover=None, on_pick=None, on_layout=None,
+                 fresh: str = "") -> None:
         import tkinter as tk
 
         self.colour, self.on_hover, self.on_pick = colour, on_hover, on_pick
@@ -529,6 +557,9 @@ class Mosaic:
         self.rows: list = []
         self.total = 0
         self.empty = empty            # fill of a slot whose ticker is not in yet
+        self.fresh = fresh            # outline of a square that is being pointed out
+        self._fresh: frozenset = frozenset()
+        self._pos: dict[str, int] = {}
         self._grid = (0, 0, 0, 0)
         self._items: list[int] = []
         self._paint: list[tuple[str, str]] = []
@@ -546,8 +577,24 @@ class Mosaic:
         than the rows so far; the grid is laid out for it, so squares fill in
         instead of reflowing as tickers arrive."""
         self.rows = list(rows)
+        self._pos = {r.ticker: i for i, r in enumerate(self.rows)}
         self.total = max(int(total or 0), len(self.rows))
         self.redraw()
+
+    def index_of(self, ticker: str) -> int | None:
+        return self._pos.get(ticker)
+
+    def set_fresh(self, indices=()) -> None:
+        """Outline these squares (by index) until told otherwise: a ticker
+        that has just landed, or the sweep that ends a clean run."""
+        indices = frozenset(indices)
+        if indices != self._fresh:
+            self._fresh = indices
+            self.redraw()
+
+    def grid(self) -> tuple[int, int]:
+        """(columns, squares drawn) of the current layout."""
+        return self._grid[0], len(self._items)
 
     def shown(self) -> int:
         cols, rows, _pitch, _gap = self._grid
@@ -572,6 +619,8 @@ class Mosaic:
         known = len(self.rows)
         for i, item in enumerate(self._items):
             paint = self.colour(self.rows[i]) if i < known else (self.empty, "")
+            if i in self._fresh and self.fresh:
+                paint = (paint[0], self.fresh)
             if paint != self._paint[i]:
                 self._paint[i] = paint
                 c.itemconfigure(item, fill=paint[0], outline=paint[1] or paint[0])
@@ -594,3 +643,70 @@ class Mosaic:
         i = self._at(e)
         if i is not None and self.on_pick:
             self.on_pick(self.rows[i])
+
+
+class ScenePane:
+    """The run-start loading scene: an ASCII picture playing on its own canvas.
+
+    The owner *places* the canvas over the filter chips and the table while a
+    list is still being looked up (there is nothing to filter or list yet) and
+    destroys it when the first ticker lands, so the layout underneath never
+    changes. The picture is drawn at the largest font that fits; when even the
+    smallest does not, :meth:`draw` says so and the owner shows nothing."""
+
+    def __init__(self, parent, *, theme, art_font, ui_font, scale: float = 1.0) -> None:
+        import tkinter as tk
+        from tkinter import font as tkfont
+
+        self.t, self.scale = theme, scale
+        self.canvas = tk.Canvas(parent, bg=theme.surface, bd=0, highlightthickness=1,
+                                highlightbackground=theme.line)
+        self._family = tkfont.Font(font=art_font).actual("family")
+        self._ui = ui_font
+        self._cap_h = tkfont.Font(font=ui_font).metrics("linespace")
+        self._fonts: dict = {}
+        self.size: int | None = None      # font size (px) of the last frame drawn
+
+    def px(self, n: float) -> int:
+        return max(1, round(n * self.scale))
+
+    def _font(self, size: int):
+        """(font, char width, line height) of the art font at ``size`` pixels."""
+        hit = self._fonts.get(size)
+        if hit is None:
+            from tkinter import font as tkfont
+            f = tkfont.Font(family=self._family, size=-size)
+            hit = self._fonts[size] = (f, max(1, f.measure("M")),
+                                       max(1, f.metrics("linespace")))
+        return hit
+
+    def draw(self, scene: Scene, width: int, height: int) -> bool:
+        """Draw ``scene`` centred in ``width`` x ``height``. In a tight pane the
+        caption is the first thing to go; False (and nothing drawn) when even
+        then the art would be too small for anyone to make out."""
+        c, t = self.canvas, self.t
+        gap, margin = self.px(14), self.px(12)
+        for caption in dict.fromkeys((scene.caption, "")):
+            cap_h = self._cap_h + gap if caption else 0
+            self.size = fit_art(width - 2 * margin, height - 2 * margin - cap_h,
+                                scene.cols, scene.rows, lambda n: self._font(n)[1:],
+                                range(self.px(7), self.px(22) + 1))
+            if self.size is not None:
+                break
+        else:
+            return False
+        font, cw, lh = self._font(self.size)
+        x0 = (width - cw * scene.cols) // 2
+        y0 = (height - lh * scene.rows - cap_h) // 2
+        c.delete("all")
+        for row, line in enumerate(scene.lines):
+            if line:
+                c.create_text(x0, y0 + row * lh, text=line, anchor="nw", fill=t.muted,
+                              font=font)
+        for row, col, text in scene.runs:
+            c.create_text(x0 + col * cw, y0 + row * lh, text=text, anchor="nw",
+                          fill=t.accent_text, font=font)
+        if caption:
+            c.create_text(width // 2, y0 + lh * scene.rows + gap, text=caption,
+                          anchor="n", fill=t.muted, font=self._ui)
+        return True

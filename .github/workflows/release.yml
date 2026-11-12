@@ -57,6 +57,7 @@ jobs:
           python tests/test_cli.py
           python tests/test_gui.py
           python tests/test_gui_board.py
+          python tests/test_gui_board_fx.py
 
       # Opens the real main window on this Windows machine and drives it through
       # a whole offline session (every source, a run, sorting, themes, resize).

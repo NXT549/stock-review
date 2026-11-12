@@ -70,7 +70,8 @@ src/stock_analyzer/
     gui_anim.py             TkAnimator: renders ascii_art scenes into a Tk Text widget
     gui_board.py            "Live board": the main window of the Windows build. Pure model/helpers on top, BoardApp (the view) below
     gui_board_theme.py      Live board tokens: DARK / LIGHT Theme, contrast(), heat(), system-theme detection (no Tk)
-    gui_board_table.py      Live board widgets: BoardTable (virtualised canvas grid), Mosaic; pure geometry on top
+    gui_board_table.py      Live board widgets: BoardTable (virtualised canvas grid), Mosaic, ScenePane; pure geometry on top
+    gui_board_fx.py         Live board motion, all pure (no Tk): eased bar, ticker pops, quips, loading-scene layers, lift-off
     ascii_art.py            13 ~100×30 ANSI scenes + HUD; Animator for real terminals
 stock_review.py             CLI shim; re-exports the whole review namespace (tests import it)
 stock_review_gui.py         GUI launcher (what PyInstaller freezes)
@@ -133,6 +134,7 @@ There is no linter/formatter config in the repo; match surrounding style
 | GUI look | `review/gui_theme.py` tokens/factories — see DESIGN.md "GUI design system" |
 | Live board window | `review/gui_board.py` (`BoardApp`, `BoardModel`), colours in `gui_board_theme.py` (add new text/background pairs to `TEXT_PAIRS`), table / mosaic in `gui_board_table.py`; reuses `gui.build_argv` / `_run_review`; `tests/test_gui_board.py`. See DESIGN.md "Live board" |
 | Live board column | `gui_board.py`: `Row` field + `BoardProgress.update` + `BoardModel.on_progress` → `COLUMNS` → `BoardApp.cell` → `sort_rows` |
+| Live board motion | `review/gui_board_fx.py` (pure: what to draw) → `BoardApp.fx_tick` / `_draw_track` / `play_scene` / `celebrate` (drawing); `tests/test_gui_board_fx.py`. A new loading scene needs an entry in `SCENE_QUIPS` and must show no invented figure (tested). See DESIGN.md "A run is fun to watch" |
 | New ASCII scene | `review/ascii_art.py` → append to `ANIMATIONS` (same dict shape); GUI picks it up automatically |
 | DB schema | `storage/models.py` → regenerate `database/schema.sql`; `tests/test_storage.py` |
 | Release | bump `APP_VERSION` in `review/gui.py`, `AppVersion` in `packaging/installer.iss`, headers of `README.txt`/`INSTALL.txt`; add a CHANGES.md section; merge to `main`, then push a tag `vX.Y`. `.github/workflows/release.yml` builds `Stock-Review-Setup.exe` + `Stock-Review-Portable.zip` on Windows and publishes the GitHub Release. Keep those asset names fixed: the website and README link to `releases/latest/download/<name>` |
@@ -164,6 +166,9 @@ There is no linter/formatter config in the repo; match surrounding style
   `gui_board._gui.BASE_DIR` / `BOARD_SETTINGS` at a temp dir, and swap
   `gui_board._gui._run_review` for a fake worker that posts queue events.
   Xvfb has no TrueType fonts unless you pass `-fp` a `mkfontscale`d folder.
+- Live board motion is decoration: it must never change a number, lead the
+  real progress, or stop a run. Keep new effects behind `settings["motion"]`
+  and inside the guarded `fx_tick` / `draw_track` paths.
 - Env switches: `STOCK_REVIEW_SELFTEST=1` (headless GUI worker test),
   `STOCK_REVIEW_SMOKE_MS=N` (auto-close the window). Parsed by `gui.env_flag`.
 - README.md references `IMPLEMENTATION_PLAN.md`, which is not in the repo.

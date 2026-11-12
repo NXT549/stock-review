@@ -9,8 +9,9 @@ before anything is released.
 
 Offline: the worker is replaced by a fake that posts the same queue events a
 real run does (rows with and without values, a failure, in-fetch retries, a
-retry round, a report file, a no-report ending). Settings and reports go to a
-temp folder. Any exception raised inside a Tk callback fails the test; Tk would
+retry round, a report file, a no-report ending, and a slow list lookup followed
+by a clean run for the loading scene and the lift-off). Settings and reports go
+to a temp folder. Any exception raised inside a Tk callback fails the test; Tk would
 otherwise only print it.
 """
 from __future__ import annotations
@@ -27,11 +28,28 @@ sys.path.insert(0, str(ROOT / "src"))
 
 
 def _fake_worker(gate: threading.Event, mode: dict, app_box: list):
+    def write_report():
+        app = app_box[0]
+        Path(app.path).parent.mkdir(parents=True, exist_ok=True)
+        Path(app.path).write_text("# Stock review\n" + "row\n" * 500, encoding="utf-8")
+
     def run(argv, q, progress, cancel):
         if mode["bad"]:
             q.put(("log", "Could not read the list.\n"))
             q.put(("done", {"code": 2, "error": "Could not read the list. " + "x" * 300,
                             "cancelled": False}))
+            return
+        if mode.get("clean"):        # a slow list lookup, then every ticker fetched
+            gate.wait(20)
+            progress.total = 12
+            for i in range(12):
+                progress.update(i + 1, ticker=f"C{i:02d}", ok=i + 1, failed=0, rec={
+                    "ticker": f"C{i:02d}", "name": f"Clean Co {i}", "sector": "Energy",
+                    "price": 5.0 + i, "currency": "USD",
+                    "ret_1m": None if i == 3 else (i - 6) / 50, "error": None})
+                time.sleep(0.03)
+            write_report()
+            q.put(("done", {"code": 0, "error": None, "cancelled": False}))
             return
         progress.total = 33
         q.put(("log", "Fetching 33 tickers\n"))
@@ -52,9 +70,7 @@ def _fake_worker(gate: threading.Event, mode: dict, app_box: list):
         progress.update(33, ticker="SLOW", ok=31, failed=2, rec={
             "ticker": "SLOW", "name": "Slow Co", "sector": "Energy", "price": 3.5,
             "currency": "USD", "ret_1m": 0.01, "error": None})
-        app = app_box[0]
-        Path(app.path).parent.mkdir(parents=True, exist_ok=True)
-        Path(app.path).write_text("# Stock review\n" + "row\n" * 500, encoding="utf-8")
+        write_report()
         q.put(("done", {"code": 130 if cancel.is_set() else 0, "error": None,
                         "cancelled": cancel.is_set()}))
     return run
@@ -246,10 +262,72 @@ def main() -> int:
         pump(8, until=lambda: not app.running and app.screen == "done")
     check(app.screen == "done", "F5 runs")
 
+    # -- motion: loading scene, gliding bar, lift-off, and the off switch -----------
+    check(app.settings["motion"] is True, "animations are on unless switched off")
+    check(app.summary["kind"] == "warn" and app.fete is None,
+          "a run with failures ends without a celebration")
+    mode["clean"] = True
+    gate.clear()
+    app.set_mode("source")
+    app.start()
+    pump(1.2)                                    # the list is still being looked up
+    box = app.table.frame
+    stage = box.winfo_y() + box.winfo_height() - app.tools.winfo_y()
+    check(app.running and app.fx is not None and app.scene_pane is not None,
+          "a looked-up list starts the loading scene while nothing has landed")
+    print(f"   scene stage {app.main.winfo_width()}x{stage} px, "
+          f"font {app.scene_pane.size} px, showing={app.scene_showing()}")
+    if stage >= app.px(300):                     # any window the app normally opens at
+        check(app.scene_showing(), "the scene fits the default window")
+    check(app.fx.shown == 0.0 and not app.model.rows, "nothing is claimed before it lands")
+    gate.set()
+    pump(8, until=lambda: not app.running)
+    c = app.model.counts()
+    check(not app.scene_showing() and app.scene_pane is None and c["ok"] == 12,
+          "the scene steps aside for the table")
+    check(app.model.rows["C03"].ret_1m is None, "a ticker with no return still has none")
+    check(app.summary["kind"] == "ok" and app.summary["actions"] and app.fete is not None,
+          "a clean run: the done band is built and the lift-off plays over it")
+    app.copy_for_ai()
+    check(app.status_kind == "ok", "Copy for AI works while the lift-off plays")
+    pump(6, until=lambda: app.fete is None)
+    pump(0.3)
+    check(app._fx_job is None, "the animation loop stops when nothing is moving")
+    gate.clear()
+    app.start()
+    pump(0.5)
+    gate.set()
+    pump(8, until=lambda: not app.running)
+    check(app.fete is not None, "another clean run celebrates again")
+    root.event_generate("<Key>", keysym="a")
+    pump(0.1)
+    check(app.fete is None, "any key skips the lift-off")
+    check(app.fx_error is None, f"no animation was dropped: {app.fx_error}")
+
+    app.set_mode("custom")                       # leave the finished run
+    app.set_mode("source")
+    app.toggle_drawer()
+    app._set_option("motion", False)
+    app.toggle_drawer()
+    gate.clear()
+    app.start()
+    pump(1.0)
+    check(app.fx is None and app._fx_job is None and app.scene_pane is None,
+          "animations off: no scene, no fast loop")
+    gate.set()
+    pump(8, until=lambda: not app.running)
+    pump(0.2)
+    check(app.summary["kind"] == "ok" and app.fete is None and app.model.counts()["ok"] == 12,
+          "animations off: the run itself is unchanged, and no lift-off")
+    mode["clean"] = False
+    app.set_mode("curated")
+    pump(0.2)
+
     app.on_close()
     assert not errors, "exception in a Tk callback:\n" + "\n".join(errors)
     saved = gb.load_board_settings()
     assert saved.get("mode") == "curated" and saved.get("theme") == "auto", saved
+    assert saved.get("motion") is False and isinstance(saved.get("scene"), int), saved
     print("\nLive board window test passed")
     return 0
 

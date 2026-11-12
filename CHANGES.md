@@ -1,3 +1,31 @@
+# Changes — unreleased: a run that is fun to watch
+
+The main window (the Live board) now moves while it works. Nothing about what
+is fetched or what the report contains has changed, and every figure on screen
+is still a real one.
+
+- **A loading scene.** When you run a list that has to be looked up first (a
+  region or a sector), an animated ASCII scene plays where the table will be:
+  a rocket on the pad, a whale, a sleeping bear, a city at night... It steps
+  aside the moment the first ticker arrives. A different scene opens each run.
+- **A livelier progress bar.** It is chunkier, shows the percentage, and glides
+  instead of jumping (it can trail the real count by a moment, never run ahead
+  of it). The little rocket rides its leading edge, and the tickers that have
+  just been fetched pop up beside it with their 1-month return. Failed tickers
+  show on the bar as hollow segments, and each new square in the mosaic
+  flashes as it lands.
+- **Milestones.** A short line at a quarter, half and three quarters of the
+  way. Anything that matters (a retry, a slow ticker, a failure) is always
+  shown instead.
+- **Lift-off.** When every ticker was fetched, the rocket leaves and a second
+  or two of ASCII fireworks plays before the buttons. Any key or click skips
+  it; Copy for AI and Open report work straight away either way.
+- **Off switch.** Options has "Animations while a review runs". It starts off
+  if Windows' own "Animation effects" setting is off.
+- Developers: the motion is pure functions in `review/gui_board_fx.py`, covered
+  by `tests/test_gui_board_fx.py`; the window test now also drives a slow list
+  lookup, a clean run and a run with animations off. See DESIGN.md "Live board".
+
 # Changes — 2.5 (2026-11-12): the main window and the website, redesigned
 
 A redesign of the Live board (what `Stock Review.exe` opens) and of the website.

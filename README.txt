@@ -33,8 +33,10 @@ chat (whichever one you like) and ask something like
 you do the deciding.
 
 While it works you watch it happen: every ticker fills into a live
-table, and a mosaic of small squares (one per ticker, coloured by its
-1-month return) builds up as the run goes. Dark and light themes.
+table, a little rocket rides the progress bar, and a mosaic of small
+squares (one per ticker, coloured by its 1-month return) builds up as
+the run goes. Dark and light themes. Animations can be switched off in
+Options.
 
 Prefer the 90s? "Stock Review (Classic)" is still in the Start menu:
 the original Windows 98 style window with its MS-DOS panel of

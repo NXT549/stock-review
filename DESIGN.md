@@ -226,7 +226,8 @@ same worker (`gui._run_review`) and never changes report contents.
 |---|---|
 | `gui_board.py` | pure model + helpers (`BoardModel`, `filter_rows`, `sort_rows`, `finish_summary`, `failure_line`, …) and `BoardApp`, the window |
 | `gui_board_theme.py` | `Theme` tokens (`DARK`, `LIGHT`), `contrast()`, `heat()`, `detect_system_theme()`, font choice. No Tk |
-| `gui_board_table.py` | pure geometry + `BoardTable` (virtualised canvas grid) and `Mosaic` |
+| `gui_board_table.py` | pure geometry + `BoardTable` (virtualised canvas grid), `Mosaic` and `ScenePane` (the loading scene's canvas) |
+| `gui_board_fx.py` | motion, all pure: `ease`, `bar_cells`, `Pops`, `Milestones`, `scene_frame`, `liftoff`, `RunFx`. No Tk |
 
 **Layout (one frame that does not jump).** Header (brand, tape of latest
 1-month returns, Log / theme / Options) → sidebar (what to review, recent
@@ -239,8 +240,8 @@ the reason on the meta line.
 
 **The status band** is one fixed slot with three states of identical height
 (idle: what a run produces + latest report; running: headline, mood, clock,
-progress bar; done: result, failed tickers by name, Copy for AI / Open report /
-Open folder / Retry). When the window is wide enough its right side holds the
+progress bar with the real percentage beside it; done: result, failed tickers
+by name, Copy for AI / Open report / Open folder / Retry). When the window is wide enough its right side holds the
 **mosaic**: one square per ticker, laid out for the whole run so it fills in
 rather than reflows.
 
@@ -268,8 +269,8 @@ Rules:
   in `TEXT_PAIRS` and must clear WCAG AA 4.5:1 in both themes (3:1 for
   `INDICATOR_PAIRS`); `tests/test_gui_board.py` walks the lists. Add a pair
   when you introduce a combination. `faint` is decoration only, never text.
-- **Every number on screen is real**: rows come from the run's own events
-  (name, sector, price in listing currency, 1-month return). Unknown → blank,
+- **Every number on screen is real**, decoration included: rows come from the
+  run's own events (name, sector, price in listing currency, 1-month return). Unknown → blank,
   never 0; a missing value draws no bar, gets a neutral grey square, and sorts
   last in both directions. Market cap is not shown because it is not
   USD-normalised until after the fetch. No score; nothing reads as advice.
@@ -282,9 +283,44 @@ Rules:
   switch works: nothing a run produced may live only in a widget. Theme
   switching is disabled during a run. Border-only containers go through
   `BoardApp.panel` (Tk paints a frame's border black when a child has focus).
-- The fun is small and contained: the ASCII `~=>` rocket riding the progress
-  bar, the larger rocket in the empty state, one plain mood sentence, a pulse
-  dot.
+- **A run is fun to watch** (`gui_board_fx.py`; pure and tested, the view only
+  draws what it returns). Still ASCII and tokens only: no emoji, gradients or
+  images. What moves, and the limits it keeps:
+  - *Loading scene.* While a looked-up list has produced no row yet (and only
+    after 0.3 s, so a cached list never flashes one), a scene from
+    `ascii_art.ANIMATIONS` plays on a `ScenePane` **placed** over the chips
+    and the table, at the largest font that fits (the caption goes first; below
+    7 px it is not shown at all). It is destroyed when the first ticker lands.
+    Lists known offline (starter, typed, file) keep showing their queued rows.
+    Only 8 of the Classic window's 13 scenes are used (`SCENE_QUIPS`): the
+    others draw invented prices, claim to score, or carry a market view, and
+    the captions are written for this window for the same reason. Line art is
+    `muted`, the scene's accent characters `accent_text`.
+  - *The bar* is segmented: fetched share solid `accent`, failed share hollow
+    `warn` (a shape, not only a hue). The fill eases toward the real fraction
+    and **never passes it** (`ease`); the percentage is always the real one.
+    While the size of the run is unknown a short block sweeps instead. The
+    `~=>` rocket rides the leading edge.
+  - *Pops.* The latest fetched tickers show beside the rocket for about a
+    second with their own 1-month return (no return known: no figure). At most
+    three, at most one new one per 0.3 s; the rest are in the table and tape.
+    A pop stays at full contrast and then leaves, it does not fade. A just
+    landed mosaic square is outlined in `ink` for a moment.
+  - *Quips* at 25 / 50 / 75 % replace the mood line for 3 s, and only while
+    the run is calm (`BoardModel.calm`): a retry, a slow ticker or a failure
+    always gets the line.
+  - *Lift-off.* A clean run (every ticker fetched, not cancelled) ends with
+    the rocket leaving and ASCII fireworks for under 2 s, on a canvas placed
+    over the lower rows of the already-built done band, so nothing changes
+    size and the shortcuts work throughout; any key or click ends it. A
+    partial, cancelled or failed run gets none.
+  - **One switch** (Options, "Animations while a review runs"; default follows
+    Windows' "Animation effects" via `detect_reduced_motion`) turns all of it
+    off: no scene, no fast loop, the bar steps.
+  - The fast loop (`BoardApp.fx_tick`, 66 ms) runs only while something moves.
+    No randomness: every frame is a function of its index. Decoration can
+    never break a run: a failure in it is caught, kept in `BoardApp.fx_error`
+    (the window test asserts it stays `None`) and the run carries on still.
 - `BoardProgress.wants_rec = True` makes `fetch._fetch_batch` hand it each
   ticker's record; sinks without the flag keep the old `update()` signature.
 - Tk 8.6 (the frozen build) and Tk 9 both work; avoid APIs only one has.

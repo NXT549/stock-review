@@ -1,4 +1,4 @@
-STOCK REVIEW 2.5 - WHAT IS THIS THING?
+STOCK REVIEW 2.6 - WHAT IS THIS THING?
 =======================================
 by NXT
 

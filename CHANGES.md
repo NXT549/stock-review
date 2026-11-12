@@ -1,4 +1,4 @@
-# Changes — unreleased: a run that is fun to watch
+# Changes — 2.6 (2026-11-12): a run that is fun to watch
 
 The main window (the Live board) now moves while it works. Nothing about what
 is fetched or what the report contains has changed, and every figure on screen
